@@ -5,6 +5,7 @@ const AUTH_URL = process.env.TARGET_AUTH_URL!
 const BASE_URL = process.env.TARGET_BASE_URL!
 const CLIENT_ID = process.env.TARGET_CLIENT_ID!
 const CLIENT_SECRET = process.env.TARGET_CLIENT_SECRET!
+const CLIENT_DOC = process.env.TARGET_CLIENT_DOC || '' // CNPJ do cliente perante a Target
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
@@ -43,6 +44,7 @@ async function apiGet(path: string, params?: Record<string, string>) {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
+      ...(CLIENT_DOC ? { 'x-indirect-user-doc': CLIENT_DOC } : {})
     },
     params,
   })
