@@ -55,10 +55,9 @@ async function apiGet(path: string, params?: Record<string, string>) {
 
 export async function consultarBasicaPF(cpf: string) {
   try {
-    const data = await apiGet(`/pf/basica`, { 
-      documento: cpf,
-      relatorio: 'RELATORIO_INTERMEDIARIO_PF',
-      features: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
+    // URL: /crednet/pfconsultation/{cpf}/{uf}/{relatorio}?optionalFeatures={features}
+    const data = await apiGet(`/crednet/pfconsultation/${cpf}/SP/RELATORIO_INTERMEDIARIO_PF`, { 
+      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
     })
     return { success: true, data }
   } catch (error: unknown) {
@@ -68,10 +67,9 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    const data = await apiGet(`/pj/basica`, { 
-      documento: cnpj,
-      relatorio: 'RELATORIO_INTERMEDIARIO_PJ',
-      features: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
+    // URL: /crednet/pjconsultation/{cnpj}/{uf}/{relatorio}?optionalFeatures={features}
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { 
+      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
     })
     return { success: true, data }
   } catch (error: unknown) {
@@ -81,10 +79,8 @@ export async function consultarBasicaPJ(cnpj: string) {
 
 export async function consultarRatingPF(cpf: string) {
   try {
-    const data = await apiGet(`/pf/rating`, { 
-      documento: cpf,
-      relatorio: 'RELATORIO_INTERMEDIARIO_PF',
-      features: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Renda_estimada,Capacidade_pagamento'
+    const data = await apiGet(`/crednet/pfconsultation/${cpf}/SP/RELATORIO_INTERMEDIARIO_PF`, { 
+      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Renda_estimada,Capacidade_pagamento'
     })
     return { success: true, data }
   } catch (error: unknown) {
@@ -94,10 +90,8 @@ export async function consultarRatingPF(cpf: string) {
 
 export async function consultarRatingPJ(cnpj: string) {
   try {
-    const data = await apiGet(`/pj/rating`, { 
-      documento: cnpj,
-      relatorio: 'RELATORIO_INTERMEDIARIO_PJ',
-      features: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Faturamento_estimado_positivo,Limite_crédito'
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { 
+      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Faturamento_estimado_positivo,Limite_crédito'
     })
     return { success: true, data }
   } catch (error: unknown) {
