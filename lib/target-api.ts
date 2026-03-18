@@ -40,11 +40,12 @@ async function getAccessToken(): Promise<string> {
 
 async function apiGet(path: string, params?: Record<string, string>) {
   const token = await getAccessToken()
-  const response = await axios.get(`${BASE_URL}${path}`, {
+  const cleanBaseUrl = BASE_URL.replace(/\/+$/, '')
+  const response = await axios.get(`${cleanBaseUrl}${path}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
-      ...(CLIENT_DOC ? { 'x-indirect-user-doc': CLIENT_DOC } : {})
+      'x-indirect-user-doc': CLIENT_DOC
     },
     params,
   })
