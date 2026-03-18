@@ -60,7 +60,7 @@ export async function consultarBasicaPF(cpf: string) {
     })
     return { success: true, data }
   } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error), data: getMockBasicaPF(cpf) }
+    return { success: false, error: getErrorMessage(error) }
   }
 }
 
@@ -73,7 +73,7 @@ export async function consultarBasicaPJ(cnpj: string) {
     })
     return { success: true, data }
   } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error), data: getMockBasicaPJ(cnpj) }
+    return { success: false, error: getErrorMessage(error) }
   }
 }
 
@@ -86,7 +86,7 @@ export async function consultarRatingPF(cpf: string) {
     })
     return { success: true, data }
   } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error), data: getMockRatingPF(cpf) }
+    return { success: false, error: getErrorMessage(error) }
   }
 }
 
@@ -99,7 +99,7 @@ export async function consultarRatingPJ(cnpj: string) {
     })
     return { success: true, data }
   } catch (error: unknown) {
-    return { success: false, error: getErrorMessage(error), data: getMockRatingPJ(cnpj) }
+    return { success: false, error: getErrorMessage(error) }
   }
 }
 
@@ -110,151 +110,6 @@ function getErrorMessage(error: unknown): string {
   return 'Erro desconhecido'
 }
 
-// ─── Mock Data (Homologação) ─────────────────────────────────────────────────
-
-function getMockBasicaPF(cpf: string) {
-  return {
-    tipo: 'basica_pf',
-    documento: cpf,
-    identificacao: {
-      nome: 'JOÃO SILVA SANTOS',
-      cpf: cpf,
-      dataNascimento: '1985-06-15',
-      sexo: 'M',
-      situacaoCpf: 'REGULAR',
-    },
-    status: {
-      situacaoReceita: 'REGULAR',
-      obitos: false,
-      pep: false,
-    },
-    anotacoes: {
-      totalDividas: 2,
-      valorTotal: 4850.00,
-      itens: [
-        { credor: 'BANCO XYZ', valor: 2500.00, data: '2024-03-15', tipo: 'CHEQUE SEM FUNDO' },
-        { credor: 'FINANCEIRA ABC', valor: 2350.00, data: '2024-01-20', tipo: 'DÍVIDA BANCÁRIA' },
-      ],
-    },
-    score: {
-      pontuacao: 720,
-      faixa: 'BOM',
-      percentilBrasil: 68,
-    },
-    participacoes: {
-      empresas: [
-        { razaoSocial: 'SANTOS COMÉRCIO LTDA', cnpj: '12.345.678/0001-90', participacao: 'SÓCIO', dataEntrada: '2018-01-01' },
-      ],
-    },
-    consultadoEm: new Date().toISOString(),
-  }
-}
-
-function getMockBasicaPJ(cnpj: string) {
-  return {
-    tipo: 'basica_pj',
-    documento: cnpj,
-    identificacao: {
-      razaoSocial: 'EMPRESA TESTE LTDA',
-      nomeFantasia: 'EMPRESA TESTE',
-      cnpj: cnpj,
-      situacaoCadastral: 'ATIVA',
-      dataAbertura: '2015-03-20',
-      naturezaJuridica: 'SOCIEDADE LIMITADA',
-      porte: 'MICRO EMPRESA',
-      atividadePrincipal: 'COMÉRCIO VAREJISTA',
-    },
-    status: {
-      situacaoReceita: 'ATIVA',
-      dividaAtiva: false,
-    },
-    anotacoes: {
-      totalDividas: 1,
-      valorTotal: 12500.00,
-      itens: [
-        { credor: 'BANCO NACIONAL', valor: 12500.00, data: '2024-02-10', tipo: 'PROTESTO' },
-      ],
-    },
-    detalhamento: {
-      capitalSocial: 50000.00,
-      socios: [
-        { nome: 'JOÃO SILVA SANTOS', cpf: '000.000.023-05', participacao: '60%', cargo: 'SÓCIO-ADMINISTRADOR' },
-        { nome: 'MARIA OLIVEIRA', cpf: '111.111.111-11', participacao: '40%', cargo: 'SÓCIA' },
-      ],
-      enderecos: [
-        { tipo: 'PRINCIPAL', logradouro: 'RUA DAS FLORES, 123', bairro: 'CENTRO', cidade: 'SÃO PAULO', uf: 'SP', cep: '01310-100' },
-      ],
-    },
-    consultadoEm: new Date().toISOString(),
-  }
-}
-
-function getMockRatingPF(cpf: string) {
-  const basica = getMockBasicaPF(cpf)
-  return {
-    ...basica,
-    tipo: 'rating_pf',
-    renda: {
-      rendaEstimada: 8500.00,
-      faixaRenda: 'MÉDIA-ALTA',
-      fonteRenda: 'ASSALARIADO',
-    },
-    capacidadePagamento: {
-      limiteRecomendado: 25500.00,
-      comprometimentoRenda: 15.2,
-      probabilidadeInadimplencia: 4.8,
-      classificacaoRisco: 'BAIXO',
-    },
-    historicoPagamentos: {
-      pontualidade: 94,
-      pagamentosEmDia: 47,
-      pagamentosAtrasados: 3,
-    },
-  }
-}
-
-function getMockRatingPJ(cnpj: string) {
-  return {
-    tipo: 'rating_pj',
-    documento: cnpj,
-    identificacao: {
-      razaoSocial: 'EMPRESA TESTE LTDA',
-      cnpj: cnpj,
-      situacaoCadastral: 'ATIVA',
-      dataAbertura: '2015-03-20',
-    },
-    anotacoes: {
-      totalDividas: 1,
-      valorTotal: 12500.00,
-      itens: [
-        { credor: 'BANCO NACIONAL', valor: 12500.00, data: '2024-02-10', tipo: 'PROTESTO' },
-      ],
-    },
-    score: {
-      pontuacao: 650,
-      faixa: 'BOM',
-      percentilBrasil: 55,
-    },
-    risco: {
-      classificacao: 'MÉDIO',
-      probabilidadeInadimplencia: 8.2,
-      rating: 'BB+',
-    },
-    faturamento: {
-      estimativaAnual: 480000.00,
-      faixa: 'R$ 360k - R$ 720k',
-    },
-    limiteCredito: {
-      recomendado: 48000.00,
-      emUso: 12500.00,
-      disponivel: 35500.00,
-    },
-    socios: [
-      { nome: 'JOÃO SILVA SANTOS', cpf: '000.000.023-05', participacao: '60%', cargo: 'SÓCIO-ADMINISTRADOR', scoreIndividual: 720 },
-      { nome: 'MARIA OLIVEIRA', cpf: '111.111.111-11', participacao: '40%', cargo: 'SÓCIA', scoreIndividual: 680 },
-    ],
-    consultadoEm: new Date().toISOString(),
-  }
-}
+// Mock data removed for production
 
 export type ConsultaResultado = Awaited<ReturnType<typeof consultarBasicaPF>>
