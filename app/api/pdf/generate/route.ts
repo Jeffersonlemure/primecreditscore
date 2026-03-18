@@ -38,6 +38,10 @@ export async function GET(request: Request) {
     const { result_data, consultation_types } = consultation
     const consultationType = (consultation_types as { code: string })?.code
 
+    if (!result_data) {
+      return NextResponse.json({ error: 'Nenhum dado disponível para gerar PDF (consulta falhou or está vazia).' }, { status: 400 })
+    }
+
     let pdfBytes: Uint8Array
 
     switch (consultationType) {
