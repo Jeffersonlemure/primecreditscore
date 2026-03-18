@@ -120,6 +120,10 @@ export async function POST(request: Request) {
       console.error('Error saving consultation:', saveError)
     }
 
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || 'Erro na consulta com o provedor' }, { status: 400 })
+    }
+
     return NextResponse.json({
       success: true,
       consultationId: consultation?.id,

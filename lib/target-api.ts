@@ -51,15 +51,62 @@ async function apiGet(path: string, params?: Record<string, string>) {
   return response.data
 }
 
+// ─── Mapper ──────────────────────────────────────────────────────────────
+function mapTargetToGeneric(targetData: any, type: 'PF' | 'PJ') {
+  const report = targetData.reports?.[0] || targetData;
+  const reg = report.registration || {};
+  const neg = report.negativeData || {};
+  
+  const pefinItens = (neg.pefin?.pefinResponse || []).map((i: any) => ({ credor: i.creditorName, tipo: 'PEFIN', data: i.occurrenceDate, valor: i.amount }));
+  const refinItens = (neg.refin?.refinResponse || []).map((i: any) => ({ credor: i.creditorName, tipo: 'REFIN', data: i.occurrenceDate, valor: i.amount }));
+  const protestoItens = (neg.notary?.notaryResponse || []).map((i: any) => ({ credor: `Cartório ${i.city || ''} ${i.federalUnit || ''}`, tipo: 'PROTESTO', data: i.occurrenceDate, valor: i.amount }));
+  
+  const allItens = [...pefinItens, ...refinItens, ...protestoItens];
+  const totalBalance = (neg.pefin?.summary?.balance || 0) + (neg.refin?.summary?.balance || 0) + (neg.notary?.summary?.balance || 0);
+
+  if (type === 'PF') {
+    return {
+      tipo: 'PF',
+      identificacao: {
+        nome: reg.consumerName,
+        cpf: reg.documentNumber,
+        dataNascimento: reg.birthDate,
+        sexo: reg.consumerGender,
+        nomeMae: reg.motherName,
+        situacaoCadastral: reg.statusRegistration
+      },
+      score: null, // Target accounts sem autorização para score
+      anotacoes: {
+        totalDividas: allItens.length,
+        valorTotal: totalBalance,
+        itens: allItens
+      }
+    };
+  } else {
+    return {
+      tipo: 'PJ',
+      identificacao: {
+        razaoSocial: reg.companyName,
+        cnpj: reg.companyDocument,
+        dataAbertura: reg.foundationDate,
+        situacaoCadastral: reg.statusRegistration
+      },
+      score: null,
+      anotacoes: {
+        totalDividas: allItens.length,
+        valorTotal: totalBalance,
+        itens: allItens
+      }
+    };
+  }
+}
+
 // ─── Consultas ──────────────────────────────────────────────────────────────
 
 export async function consultarBasicaPF(cpf: string) {
   try {
-    // URL: /crednet/pfconsultation/{cpf}/{uf}/{relatorio}?optionalFeatures={features}
-    const data = await apiGet(`/crednet/pfconsultation/${cpf}/SP/RELATORIO_INTERMEDIARIO_PF`, { 
-      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
-    })
-    return { success: true, data }
+    const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`)
+    return { success: true, data: mapTargetToGeneric(data, 'PF') }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
   }
@@ -67,11 +114,9 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    // URL: /crednet/pjconsultation/{cnpj}/{uf}/{relatorio}?optionalFeatures={features}
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { 
-      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
-    })
-    return { success: true, data }
+    // URL requires UF, using defaulting to SP if not known
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`)
+    return { success: true, data: mapTargetToGeneric(data, 'PJ') }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
   }
@@ -79,10 +124,8 @@ export async function consultarBasicaPJ(cnpj: string) {
 
 export async function consultarRatingPF(cpf: string) {
   try {
-    const data = await apiGet(`/crednet/pfconsultation/${cpf}/SP/RELATORIO_INTERMEDIARIO_PF`, { 
-      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Renda_estimada,Capacidade_pagamento'
-    })
-    return { success: true, data }
+    const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`)
+    return { success: true, data: mapTargetToGeneric(data, 'PF') }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
   }
@@ -90,10 +133,8 @@ export async function consultarRatingPF(cpf: string) {
 
 export async function consultarRatingPJ(cnpj: string) {
   try {
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { 
-      optionalFeatures: 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Faturamento_estimado_positivo,Limite_crédito'
-    })
-    return { success: true, data }
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`)
+    return { success: true, data: mapTargetToGeneric(data, 'PJ') }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
   }
@@ -105,7 +146,5 @@ function getErrorMessage(error: unknown): string {
   }
   return 'Erro desconhecido'
 }
-
-// Mock data removed for production
 
 export type ConsultaResultado = Awaited<ReturnType<typeof consultarBasicaPF>>
