@@ -258,69 +258,71 @@ function buildAnotacoes(report: any): AnotacoesData {
 
 // ─── Participações Builder ────────────────────────────────────────────────────
 
-function buildParticipacoes(report: any): Participacao[] {
-  const reg = report.registration || {}
-  const opt = report.optionalFeatureResponse || {}
-
-  const rawList: any[] =
-    opt.PARTICIPACAO_SOCIETARIA?.partnerships ||
-    opt.PARTICIPACOES?.partnerships ||
-    reg.partnerships ||
-    []
+// opt = targetData.optionalFeatures (top-level, not inside report)
+function buildParticipacoes(opt: any): Participacao[] {
+  // PF: opt.partner.partnershipResponse
+  const rawList: any[] = opt.partner?.partnershipResponse || []
 
   return rawList.map((p: any) => ({
     razaoSocial: p.companyName || '-',
-    cnpj: p.companyDocument || '-',
+    cnpj: p.businessDocument || '-',
     participacao: p.participationPercentage != null ? `${p.participationPercentage}%` : '-',
-    uf: p.federalUnit || '-',
-    statusCnpj: p.statusRegistration || '-',
-    desde: fmtDateBR(p.entryDate),
+    uf: p.companyState || '-',
+    statusCnpj: p.companyStatus || '-',
+    desde: fmtDateBR(p.participationInitialDate),
     ultimaAtualizacao: fmtDateBR(p.updateDate),
   }))
 }
 
 // ─── Score Extractors ─────────────────────────────────────────────────────────
 
-function extractScorePF(report: any): { pontuacao: number; chancePagamento: number } {
-  const opt = report.optionalFeatureResponse || {}
-  const pos = report.positiveData || {}
+// Normaliza defaultRate: "19,50" → 19.5, "10000" → 100.0
+function parseDefaultRate(s: string | undefined): number {
+  if (!s) return 0
+  const raw = parseFloat(s.replace(',', '.'))
+  if (isNaN(raw)) return 0
+  return raw > 100 ? Math.min(100, raw / 100) : raw
+}
 
-  const scoreObj =
-    opt.SCORE_POSITIVO_PME?.score ||
-    opt.SCORE_POSITIVO_PME ||
-    opt.SCORE_POSITIVO?.score ||
-    opt.SCORE_POSITIVO ||
-    pos.score ||
-    {}
-
+// opt = targetData.optionalFeatures
+function extractScorePF(opt: any): { pontuacao: number; chancePagamento: number } {
+  const scoreObj = opt.score || {}
+  const defaultRate = parseDefaultRate(scoreObj.defaultRate)
   return {
     pontuacao: safeNum(scoreObj.score),
-    chancePagamento: safeNum(scoreObj.percentile),
+    // defaultRate é a chance de inadimplência → chance de pagamento = 100 - defaultRate
+    chancePagamento: Math.max(0, Math.round((100 - defaultRate) * 100) / 100),
   }
 }
 
-function extractScorePJ(report: any): {
+// opt = targetData.optionalFeatures
+function extractScorePJ(opt: any, consultationType: string): {
   pontuacao: number
   probabilidadeInadimplencia: number
   risco: string
   praticasMercado: string
   interpretacao: string
 } {
-  const opt = report.optionalFeatureResponse || {}
-  const pos = report.positiveData || {}
-
-  const scoreObj =
-    opt.SCORE_POSITIVO?.score ||
-    opt.SCORE_POSITIVO ||
-    pos.score ||
-    {}
-
+  if (consultationType === 'rating_pj') {
+    // Rating PJ: opt.scores.scoreResponse[] — HIP2 = score principal
+    const scores: any[] = opt.scores?.scoreResponse || []
+    const main = scores.find((s: any) => s.scoreModel === 'HIP2') || scores[0] || {}
+    return {
+      pontuacao: safeNum(main.score),
+      probabilidadeInadimplencia: parseDefaultRate(main.defaultRate),
+      risco: main.message || '-',
+      praticasMercado: scores.map((s: any) => s.scoreModel).filter(Boolean).join(', ') || '-',
+      interpretacao: main.message || '-',
+    }
+  }
+  // Básica PJ: opt.score
+  const scoreObj = opt.score || {}
   return {
     pontuacao: safeNum(scoreObj.score),
-    probabilidadeInadimplencia: safeNum(scoreObj.defaultProbability),
-    risco: scoreObj.riskClassification || '-',
-    praticasMercado: scoreObj.marketPractice || '-',
-    interpretacao: scoreObj.interpretation || '-',
+    probabilidadeInadimplencia: parseDefaultRate(scoreObj.defaultRate),
+    risco: scoreObj.message || '-',
+    praticasMercado: scoreObj.scoreModel || '-',
+    interpretacao: scoreObj.message || '-',
   }
 }
 
@@ -385,39 +387,32 @@ function mapTargetToGeneric(
 ): BasicaPFResult | BasicaPJResult | RatingPFResult | RatingPJResult {
   const report = targetData.reports?.[0] || targetData
   const reg = report.registration || {}
-  const opt = report.optionalFeatureResponse || {}
-  const pos = report.positiveData || {}
+  // optionalFeatures fica na RAIZ da resposta, não dentro do report
+  const opt = targetData.optionalFeatures || {}
 
   const anotacoes = buildAnotacoes(report)
   const consultadoEm = new Date().toLocaleString('pt-BR')
 
   if (type === 'PF') {
-    const score = extractScorePF(report)
-    const participacoes = buildParticipacoes(report)
+    const score = extractScorePF(opt)
+    const participacoes = buildParticipacoes(opt)
 
     const situacaoCpf: string = reg.statusRegistration || 'REGULAR'
 
     if (consultationType === 'rating_pf') {
-      // Renda Estimada
-      const rendaObj =
-        opt.RENDA_ESTIMADA?.estimatedIncome ||
-        opt.RENDA_ESTIMADA ||
-        pos.estimatedIncome ||
-        {}
+      // Renda Estimada — opt.attributes.estimatedIncome.scoring (valor do modelo HRP2)
+      const estimatedIncome = opt.attributes?.estimatedIncome?.scoring ||
+        opt.attributes?.attributesResponse?.[0]?.scoring || 0
       const renda = {
-        min: safeNum(rendaObj.incomeRangeMin),
-        max: safeNum(rendaObj.incomeRangeMax),
+        min: safeNum(estimatedIncome),
+        max: safeNum(estimatedIncome),
       }
 
-      // Capacidade de Pagamento
-      const capObj =
-        opt.CAPACIDADE_PAGAMENTO?.paymentCapacity ||
-        opt.CAPACIDADE_PAGAMENTO ||
-        pos.paymentCapacity ||
-        {}
+      // Capacidade de Pagamento — opt.attributes.affordability.scoring (modelo HCPA)
+      const affordability = opt.attributes?.affordability?.scoring || 0
       const capacidadePagamento = {
-        min: safeNum(capObj.paymentCapacityMin),
-        max: safeNum(capObj.paymentCapacityMax),
+        min: safeNum(affordability),
+        max: safeNum(affordability),
       }
 
       const result: RatingPFResult = {
@@ -458,27 +453,25 @@ function mapTargetToGeneric(
     return result
   } else {
     // PJ
-    const score = extractScorePJ(report)
+    const score = extractScorePJ(opt, consultationType)
     const { socios, administradores } = buildSociosAdmins(report)
 
     const situacaoCnpj: string = reg.statusRegistration || 'ATIVA'
 
-    // Faturamento
-    const fatObj =
-      opt.FATURAMENTO_ESTIMADO_POSITIVO?.estimatedBilling ||
-      opt.FATURAMENTO_ESTIMADO_POSITIVO ||
-      pos.estimatedBilling ||
-      {}
-    const faturamento = safeNum(fatObj.annualEstimation)
+    // Faturamento — Rating PJ: opt.scores.scoreResponse HFE3 (valorEmMilhares)
+    let faturamento = 0
+    {
+      const scores: any[] = opt.scores?.scoreResponse || []
+      const hfe3 = scores.find((s: any) => s.scoreModel === 'HFE3')
+      const param = hfe3?.scoreParam?.find((p: any) => p.key === 'valorEmMilhares')
+      faturamento = safeNum(param?.value)
+    }
 
     if (consultationType === 'rating_pj') {
-      // Limite de Crédito
-      const limObj =
-        opt.LIMITE_CREDITO?.creditLimit ||
-        opt.LIMITE_CREDITO ||
-        pos.creditLimit ||
-        {}
-      const limiteCredito = safeNum(limObj.recommendedLimit)
+      // Limite de Crédito — HLC1 score (valor em reais)
+      const scores: any[] = opt.scores?.scoreResponse || []
+      const hlc1 = scores.find((s: any) => s.scoreModel === 'HLC1')
+      const limiteCredito = safeNum(hlc1?.score)
 
       const result: RatingPJResult = {
         tipo: 'rating_pj',
