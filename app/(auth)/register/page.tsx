@@ -36,7 +36,18 @@ export default function RegisterPage() {
     })
 
     if (err) {
-      setError(err.message === 'User already registered' ? 'Email já cadastrado.' : err.message)
+      const msg = err.message.toLowerCase()
+      if (msg.includes('already registered') || msg.includes('user already')) {
+        setError('Este email já está cadastrado. Faça login.')
+      } else if (msg.includes('rate limit') || msg.includes('email rate') || msg.includes('over_email_rate_limit') || msg.includes('too many')) {
+        setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
+      } else if (msg.includes('invalid email')) {
+        setError('Email inválido.')
+      } else if (msg.includes('password')) {
+        setError('Senha muito fraca. Use no mínimo 6 caracteres.')
+      } else {
+        setError('Erro ao criar conta. Tente novamente.')
+      }
       setLoading(false)
       return
     }
