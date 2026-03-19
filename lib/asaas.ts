@@ -32,17 +32,23 @@ export interface PixPaymentResult {
   expiresAt: string
 }
 
-export async function createOrFindCustomer(name: string, cpfCnpj: string, email: string) {
-  try {
-    // Check if customer exists
-    const search = await asaas.get('/customers', { params: { cpfCnpj } })
-    if (search.data.data && search.data.data.length > 0) {
-      return search.data.data[0].id
-    }
-  } catch {}
+export async function createOrFindCustomer(name: string, cpfCnpj: string | null, email: string) {
+  const cleanCpf = cpfCnpj ? cpfCnpj.replace(/\D/g, '') : null
+  const validCpf = cleanCpf && cleanCpf.length >= 11 ? cleanCpf : null
 
-  // Create new customer
-  const response = await asaas.post('/customers', { name, cpfCnpj, email })
+  if (validCpf) {
+    try {
+      const search = await asaas.get('/customers', { params: { cpfCnpj: validCpf } })
+      if (search.data.data && search.data.data.length > 0) {
+        return search.data.data[0].id
+      }
+    } catch {}
+  }
+
+  // cpfCnpj é opcional no Asaas
+  const payload: Record<string, string> = { name, email }
+  if (validCpf) payload.cpfCnpj = validCpf
+  const response = await asaas.post('/customers', payload)
   return response.data.id
 }
 

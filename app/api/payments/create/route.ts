@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const pixPayment = await createPixPayment({
       customer: {
         name: profile?.full_name || user.email || 'Cliente',
-        cpfCnpj: profile?.cpf_cnpj || '00000000000',
+        cpfCnpj: profile?.cpf_cnpj || null,
         email: user.email || '',
       },
       value: pkg.price,
