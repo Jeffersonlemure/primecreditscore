@@ -3,6 +3,15 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
+    // Validate Asaas webhook token
+    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN
+    if (webhookToken) {
+      const authHeader = request.headers.get('asaas-access-token') || request.headers.get('authorization')
+      if (authHeader !== webhookToken) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    }
+
     const body = await request.json()
     const { event, payment } = body
 
