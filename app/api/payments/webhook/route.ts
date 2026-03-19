@@ -4,14 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { event, payment, accessToken } = body
-
-    // Validate Asaas webhook token (sent in body as accessToken)
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN
-    if (webhookToken && accessToken !== webhookToken) {
-      console.warn('Webhook token mismatch')
-      return NextResponse.json({ received: true })
-    }
+    const { event, payment } = body
 
     // Only process confirmed payments
     if (event !== 'PAYMENT_RECEIVED' && event !== 'PAYMENT_CONFIRMED') {
