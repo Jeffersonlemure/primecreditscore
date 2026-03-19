@@ -153,25 +153,85 @@ function ConsultaResult({ data, consultationId }: { data: any; consultationId: s
       {/* Anotações */}
       {data?.anotacoes && (
         <ResultSection title="Anotações Negativas">
-          {data.anotacoes.totalDividas === 0 ? (
-            <p style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Nenhuma anotação negativa encontrada</p>
-          ) : (
+          {/* Resumo — 9 linhas sempre visíveis */}
+          <div className="table-container" style={{ marginBottom: 16 }}>
+            <table className="table">
+              <thead><tr><th>Tipo</th><th>Qtd</th><th>Período</th><th>Mais Recente</th><th>Valor</th></tr></thead>
+              <tbody>
+                {(data.anotacoes.resumo || []).map((r: { tipo: string; quantidade: number; periodo: string; maisRecente: string; valor: number }, i: number) => (
+                  <tr key={i}>
+                    <td>{r.tipo}</td>
+                    <td style={{ textAlign: 'center', fontWeight: r.quantidade > 0 ? 700 : 400, color: r.quantidade > 0 ? 'var(--danger)' : 'var(--gray-400)' }}>{r.quantidade > 0 ? r.quantidade : '—'}</td>
+                    <td style={{ color: r.quantidade > 0 ? 'inherit' : 'var(--gray-400)' }}>{r.periodo || '—'}</td>
+                    <td style={{ color: r.quantidade > 0 ? 'inherit' : 'var(--gray-400)' }}>{r.maisRecente || '—'}</td>
+                    <td style={{ color: r.valor > 0 ? 'var(--danger)' : 'var(--gray-400)', fontWeight: r.valor > 0 ? 700 : 400 }}>{r.valor > 0 ? formatCurrency(r.valor) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* PEFIN detalhes */}
+          {(data.anotacoes.pefin?.length > 0) && (
             <>
-              <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
-                <Field label="Total" value={data.anotacoes.totalDividas} />
-                <Field label="Valor Total" value={formatCurrency(data.anotacoes.valorTotal)} />
+              <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--danger)' }}>Pendências Comerciais (PEFIN)</div>
+              <div className="table-container" style={{ marginBottom: 16 }}>
+                <table className="table">
+                  <thead><tr><th>Contrato</th><th>Modalidade</th><th>Empresa</th><th>Data</th><th>Valor</th></tr></thead>
+                  <tbody>
+                    {data.anotacoes.pefin.map((p: { contrato: string; modalidade: string; empresa: string; data: string; valor: number }, i: number) => (
+                      <tr key={i}><td>{p.contrato}</td><td>{p.modalidade}</td><td>{p.empresa}</td><td>{p.data}</td><td style={{ color: 'var(--danger)', fontWeight: 700 }}>{formatCurrency(p.valor)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </>
+          )}
+
+          {/* REFIN detalhes */}
+          {(data.anotacoes.refin?.length > 0) && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--danger)' }}>Pendências Bancárias (REFIN)</div>
+              <div className="table-container" style={{ marginBottom: 16 }}>
+                <table className="table">
+                  <thead><tr><th>Contrato</th><th>Modalidade</th><th>Empresa</th><th>Data</th><th>Valor</th></tr></thead>
+                  <tbody>
+                    {data.anotacoes.refin.map((p: { contrato: string; modalidade: string; empresa: string; data: string; valor: number }, i: number) => (
+                      <tr key={i}><td>{p.contrato}</td><td>{p.modalidade}</td><td>{p.empresa}</td><td>{p.data}</td><td style={{ color: 'var(--danger)', fontWeight: 700 }}>{formatCurrency(p.valor)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Protestos detalhes */}
+          {(data.anotacoes.protestos?.length > 0) && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--danger)' }}>Protestos</div>
+              <div className="table-container" style={{ marginBottom: 16 }}>
+                <table className="table">
+                  <thead><tr><th>Cartório</th><th>Cidade</th><th>UF</th><th>Data</th><th>Valor</th></tr></thead>
+                  <tbody>
+                    {data.anotacoes.protestos.map((p: { cartorio: string; cidade: string; uf: string; data: string; valor: number }, i: number) => (
+                      <tr key={i}><td>{p.cartorio}</td><td>{p.cidade}</td><td>{p.uf}</td><td>{p.data}</td><td style={{ color: 'var(--danger)', fontWeight: 700 }}>{formatCurrency(p.valor)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Ações Judiciais detalhes */}
+          {(data.anotacoes.acoesJudiciais?.length > 0) && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--danger)' }}>Ações Judiciais</div>
               <div className="table-container">
                 <table className="table">
-                  <thead><tr><th>Credor</th><th>Tipo</th><th>Data</th><th>Valor</th></tr></thead>
+                  <thead><tr><th>Natureza</th><th>Distribuidor</th><th>Cidade</th><th>UF</th><th>Data</th><th>Valor</th></tr></thead>
                   <tbody>
-                    {data.anotacoes.itens.map((item: { credor: string; tipo: string; data: string; valor: number }, i: number) => (
-                      <tr key={i}>
-                        <td>{item.credor}</td>
-                        <td><span className="badge badge-danger">{item.tipo}</span></td>
-                        <td>{item.data}</td>
-                        <td style={{ color: 'var(--danger)', fontWeight: 700 }}>{formatCurrency(item.valor)}</td>
-                      </tr>
+                    {data.anotacoes.acoesJudiciais.map((a: { natureza: string; distribuidor: string; cidade: string; uf: string; data: string; valor: number }, i: number) => (
+                      <tr key={i}><td>{a.natureza}</td><td>{a.distribuidor}</td><td>{a.cidade}</td><td>{a.uf}</td><td>{a.data}</td><td style={{ color: 'var(--danger)', fontWeight: 700 }}>{formatCurrency(a.valor)}</td></tr>
                     ))}
                   </tbody>
                 </table>
