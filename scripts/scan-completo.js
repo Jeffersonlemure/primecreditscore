@@ -121,8 +121,8 @@ async function testarConsultas(token) {
   }
 
   // Básica PJ — RELATORIO_BASICO_PJ é o único que suporta SCORE_POSITIVO para PJ
-  const urlBasicaPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_BASICO_PJ?optionalFeatures=SCORE_POSITIVO,PARTICIPACOES`
-  const rBasicaPJ = await consultar(token, 'Básica PJ  (RELATORIO_BASICO_PJ + SCORE/PARTICIPACOES)', urlBasicaPJ)
+  const urlBasicaPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_BASICO_PJ?optionalFeatures=SCORE_POSITIVO`
+  const rBasicaPJ = await consultar(token, 'Básica PJ  (RELATORIO_BASICO_PJ + SCORE_POSITIVO)', urlBasicaPJ)
   if (rBasicaPJ) {
     checkCampos('Básica PJ', rBasicaPJ, ['registration', 'negativeData'])
     results.basica_pj = rBasicaPJ

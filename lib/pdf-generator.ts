@@ -1,58 +1,57 @@
 // PDF Generator for PrimeCreditScore
-// Generates professional PDFs for 4 consultation types
+// Generates professional PDFs matching Serasa Concentre layout
 
 import { jsPDF } from 'jspdf'
-import type { BasicaPFResult, BasicaPJResult, RatingPFResult, RatingPJResult } from './types'
+import type {
+  BasicaPFResult,
+  BasicaPJResult,
+  RatingPFResult,
+  RatingPJResult,
+  AnotacoesData,
+  PefinDetalhe,
+  ProtestoDetalhe,
+  AcaoJudicialDetalhe,
+  Participacao,
+} from './types'
 import { SERASA_LOGO_BASE64 } from './logoBase64'
 
 const COLORS = {
-  primary: [26, 86, 219] as [number, number, number],
-  dark: [17, 24, 39] as [number, number, number],
-  gray: [107, 114, 128] as [number, number, number],
+  primary:   [26, 86, 219]   as [number, number, number],
+  dark:      [17, 24, 39]    as [number, number, number],
+  gray:      [107, 114, 128] as [number, number, number],
   lightGray: [243, 244, 246] as [number, number, number],
-  white: [255, 255, 255] as [number, number, number],
-  success: [34, 197, 94] as [number, number, number],
-  warning: [234, 179, 8] as [number, number, number],
-  danger: [239, 68, 68] as [number, number, number],
-  scoreGreen: [34, 197, 94] as [number, number, number],
-  scoreBlue: [59, 130, 246] as [number, number, number],
-  scoreYellow: [234, 179, 8] as [number, number, number],
-  scoreRed: [239, 68, 68] as [number, number, number],
-  orange: [183, 121, 80] as [number, number, number],
+  white:     [255, 255, 255] as [number, number, number],
+  success:   [34, 197, 94]   as [number, number, number],
+  warning:   [234, 179, 8]   as [number, number, number],
+  danger:    [239, 68, 68]   as [number, number, number],
+  orange:    [183, 121, 80]  as [number, number, number],
+  // Gauge PJ 4-band colors
+  gaugeGreen:  [34, 139, 34]  as [number, number, number],
+  gaugeYellow: [234, 179, 8]  as [number, number, number],
+  gaugeOrange: [230, 100, 20] as [number, number, number],
+  gaugeRed:    [200, 30, 30]  as [number, number, number],
 }
 
-function getScoreColor(score: number): [number, number, number] {
-  if (score >= 700) return COLORS.scoreGreen
-  if (score >= 500) return COLORS.scoreBlue
-  if (score >= 300) return COLORS.scoreYellow
-  return COLORS.scoreRed
-}
-
-function getScoreLabel(score: number): string {
-  if (score >= 700) return 'EXCELENTE'
-  if (score >= 500) return 'BOM'
-  if (score >= 300) return 'REGULAR'
-  return 'BAIXO'
-}
+// ─── Format Helpers ───────────────────────────────────────────────────────────
 
 function formatCPF(cpf: string): string {
-  const c = cpf.replace(/\D/g, '')
+  const c = (cpf || '').replace(/\D/g, '')
+  if (c.length !== 11) return cpf || '-'
   return c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 }
 
 function formatCNPJ(cnpj: string): string {
-  const c = cnpj.replace(/\D/g, '')
+  const c = (cnpj || '').replace(/\D/g, '')
+  if (c.length !== 14) return cnpj || '-'
   return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
 }
 
 function formatCurrency(v: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('pt-BR')
+function formatCurrencyRange(min: number, max: number): string {
+  return `${formatCurrency(min)} a ${formatCurrency(max)}`
 }
 
 // ─── PDF Base Helpers ─────────────────────────────────────────────────────────
@@ -61,7 +60,7 @@ function createPDF(): jsPDF {
   return new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 }
 
-function drawHeader(doc: jsPDF, title: string, subtitle: string) {
+function drawHeader(doc: jsPDF, title: string) {
   const pageW = doc.internal.pageSize.getWidth()
 
   // Informativo Box
@@ -151,107 +150,76 @@ function drawTwoColumns(doc: jsPDF, fields: Array<[string, string]>, startY: num
   return y
 }
 
-function drawStatusBadge(doc: jsPDF, status: string, x: number, y: number) {
-  const isPositive = ['REGULAR', 'ATIVA', 'BOA', 'BAIXO'].includes(status?.toUpperCase())
-  const color = isPositive ? COLORS.success : COLORS.danger
-
-  doc.setFillColor(...color)
-  doc.roundedRect(x, y - 4, 30, 6, 1, 1, 'F')
-
-  doc.setTextColor(...COLORS.white)
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'bold')
-  doc.text(status || '-', x + 15, y, { align: 'center' })
-
-  doc.setTextColor(...COLORS.dark)
-}
-
-
-function checkPageBreak(doc: any, currentY: number, requiredSpace: number): number {
-  if (currentY + requiredSpace > 280) {
+function checkPageBreak(doc: jsPDF, currentY: number, requiredSpace: number, title: string): number {
+  if (currentY + requiredSpace > 277) {
     doc.addPage()
-    drawHeader(doc, doc.__title || '', doc.__subtitle || '')
+    drawHeader(doc, title)
     return 62
   }
   return currentY
 }
 
-function drawScoreGauge(doc: jsPDF, score: number, cx: number, startY: number, r = 18) {
-  const gaugeW = r * 2 + 20
-  const gaugeH = r + 15
+// ─── Score Gauge (PF - 3 segment) ────────────────────────────────────────────
 
-  // Background box
+function drawScoreGaugePF(doc: jsPDF, score: number, chancePagamento: number, cx: number, startY: number, r = 18): number {
+  const gaugeW = r * 2 + 24
+  const gaugeH = r + 20
+
   doc.setFillColor(248, 249, 250)
   doc.roundedRect(cx - gaugeW / 2, startY, gaugeW, gaugeH, 3, 3, 'F')
 
   const cy = startY + r + 8
 
-  const START_ANGLE = Math.PI // 180 deg
-  const END_ANGLE = 0 // 0 deg
-
-  const drawSegment = (startVal: number, endVal: number, color: [number, number, number]) => {
-    const minScore = 0
-    const maxScore = 1000
-    
-    const a1 = Math.PI + (startVal / maxScore) * Math.PI
-    const a2 = Math.PI + (endVal / maxScore) * Math.PI
-    
+  const drawArc = (startVal: number, endVal: number, color: [number, number, number]) => {
+    const a1 = Math.PI + (startVal / 1000) * Math.PI
+    const a2 = Math.PI + (endVal / 1000) * Math.PI
     const steps = 30
-    const lines = []
-    
     const gap = 0.05
-    const drawA1 = a1 + (startVal === 0 ? 0 : gap)
-    const drawA2 = a2 - (endVal === 1000 ? 0 : gap)
-    
-    if (drawA2 <= drawA1) return
-    
-    const p0x = cx + r * Math.cos(drawA1)
-    const p0y = cy + r * Math.sin(drawA1)
-    
+    const dA1 = a1 + (startVal === 0 ? 0 : gap)
+    const dA2 = a2 - (endVal === 1000 ? 0 : gap)
+    if (dA2 <= dA1) return
+    const p0x = cx + r * Math.cos(dA1)
+    const p0y = cy + r * Math.sin(dA1)
     let prevX = p0x
     let prevY = p0y
-    
+    const lines: number[][] = []
     for (let i = 1; i <= steps; i++) {
-        const a = drawA1 + (i / steps) * (drawA2 - drawA1)
-        const px = cx + r * Math.cos(a)
-        const py = cy + r * Math.sin(a)
-        lines.push([px - prevX, py - prevY])
-        prevX = px
-        prevY = py
+      const a = dA1 + (i / steps) * (dA2 - dA1)
+      const px = cx + r * Math.cos(a)
+      const py = cy + r * Math.sin(a)
+      lines.push([px - prevX, py - prevY])
+      prevX = px
+      prevY = py
     }
-    
     doc.setDrawColor(...color)
     doc.setLineWidth(5)
     // @ts-ignore
     doc.setLineCap(1)
-    doc.lines(lines, p0x, p0y, [1, 1], 'S')
+    doc.lines(lines as [number, number][], p0x, p0y, [1, 1], 'S')
   }
 
-  // Segment 1 (0 - 300)
-  const isSeg1Active = score >= 0
-  drawSegment(0, 300, isSeg1Active ? COLORS.scoreRed : [230, 230, 230])
-  
-  // Segment 2 (300 - 700)
-  const isSeg2Active = score >= 300
-  drawSegment(300, 700, isSeg2Active ? COLORS.scoreYellow : [230, 230, 230])
-  
-  // Segment 3 (700 - 1000)
-  const isSeg3Active = score >= 700
-  drawSegment(700, 1000, isSeg3Active ? COLORS.scoreGreen : [230, 230, 230])
+  const gray: [number, number, number] = [210, 210, 210]
+  drawArc(0,   300,  score >= 1   ? COLORS.danger   : gray)
+  drawArc(300, 700,  score >= 300 ? COLORS.warning  : gray)
+  drawArc(700, 1000, score >= 700 ? COLORS.success  : gray)
 
-  // Center Score Number
+  // Score number
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
   doc.text(String(score), cx, cy + 1, { align: 'center' })
 
-  // "de 1000" text
   doc.setFontSize(6)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
   doc.text('de 1000', cx, cy + 6, { align: 'center' })
 
-  // Reset line styles
+  // "XX% Chance de Pagamento"
+  doc.setFontSize(7.5)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(`${chancePagamento.toFixed(1)}% Chance de Pagamento`, cx, startY + gaugeH - 2, { align: 'center' })
+
   // @ts-ignore
   doc.setLineCap(0)
   doc.setTextColor(...COLORS.dark)
@@ -261,450 +229,892 @@ function drawScoreGauge(doc: jsPDF, score: number, cx: number, startY: number, r
   return startY + gaugeH + 5
 }
 
-// ─── Anotações Table ──────────────────────────────────────────────────────────
+// ─── Score Gauge (PJ - 4 segment) ────────────────────────────────────────────
 
-function drawAnotacoesTable(
-  doc: jsPDF,
-  anotacoes: { totalDividas: number; valorTotal: number; itens: Array<{ credor: string; valor: number; data: string; tipo: string }> },
-  y: number
-): number {
-  const pageW = doc.internal.pageSize.getWidth()
+function drawScoreGaugePJ(doc: jsPDF, score: number, _risco: string, cx: number, startY: number, r = 18): number {
+  const isDefault = score === 0
+  const gaugeW = r * 2 + 24
+  const gaugeH = r + 30
 
-  if (anotacoes.totalDividas === 0) {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...COLORS.success)
-    doc.text('✓ Nenhuma anotação negativa encontrada', 14, y + 5)
-    doc.setTextColor(...COLORS.dark)
-    return y + 12
+  doc.setFillColor(248, 249, 250)
+  doc.roundedRect(cx - gaugeW / 2, startY, gaugeW, gaugeH, 3, 3, 'F')
+
+  const cy = startY + r + 8
+
+  const drawArc = (startVal: number, endVal: number, color: [number, number, number]) => {
+    const a1 = Math.PI + (startVal / 1000) * Math.PI
+    const a2 = Math.PI + (endVal / 1000) * Math.PI
+    const steps = 30
+    const gap = 0.05
+    const dA1 = a1 + (startVal === 0 ? 0 : gap)
+    const dA2 = a2 - (endVal === 1000 ? 0 : gap)
+    if (dA2 <= dA1) return
+    const p0x = cx + r * Math.cos(dA1)
+    const p0y = cy + r * Math.sin(dA1)
+    let prevX = p0x
+    let prevY = p0y
+    const lines: number[][] = []
+    for (let i = 1; i <= steps; i++) {
+      const a = dA1 + (i / steps) * (dA2 - dA1)
+      const px = cx + r * Math.cos(a)
+      const py = cy + r * Math.sin(a)
+      lines.push([px - prevX, py - prevY])
+      prevX = px
+      prevY = py
+    }
+    doc.setDrawColor(...color)
+    doc.setLineWidth(5)
+    // @ts-ignore
+    doc.setLineCap(1)
+    doc.lines(lines as [number, number][], p0x, p0y, [1, 1], 'S')
   }
 
-  // Summary row
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...COLORS.gray)
-  doc.text(`Total: ${anotacoes.totalDividas} ocorrência(s) — Valor: ${formatCurrency(anotacoes.valorTotal)}`, 14, y + 5)
+  if (isDefault) {
+    drawArc(0, 1000, COLORS.gaugeRed)
+  } else {
+    // 4 bands: 0-200 verde mínimo, 200-500 amarelo baixo, 500-750 laranja médio, 750-1000 vermelho iminente
+    drawArc(0,    200,  score >= 1   ? COLORS.gaugeGreen  : [210, 210, 210])
+    drawArc(200,  500,  score >= 200 ? COLORS.gaugeYellow : [210, 210, 210])
+    drawArc(500,  750,  score >= 500 ? COLORS.gaugeOrange : [210, 210, 210])
+    drawArc(750, 1000,  score >= 750 ? COLORS.gaugeRed    : [210, 210, 210])
+  }
+
+  // Score number or "Default"
+  doc.setFontSize(isDefault ? 10 : 14)
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
+  doc.text(isDefault ? 'Default' : String(score), cx, cy + 1, { align: 'center' })
 
-  y += 10
+  if (!isDefault) {
+    doc.setFontSize(6)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    doc.text('de 1000', cx, cy + 6, { align: 'center' })
+  }
 
-  // Table header
-  doc.setFillColor(...COLORS.lightGray)
-  doc.rect(14, y, pageW - 28, 7, 'F')
-  doc.setDrawColor(230, 230, 230)
+  // Legend (4 bands)
+  const legendY = startY + gaugeH - 14
+  const legendX = cx - gaugeW / 2 + 2
+  const bands = [
+    { color: COLORS.gaugeGreen,  label: 'Verde: Mínimo/Baixo' },
+    { color: COLORS.gaugeYellow, label: 'Amarelo: Baixo/Médio' },
+    { color: COLORS.gaugeOrange, label: 'Laranja: Médio/Relevante' },
+    { color: COLORS.gaugeRed,    label: 'Vermelho: Iminente/Default' },
+  ]
+  bands.forEach((band, idx) => {
+    const bx = legendX + idx * (gaugeW / 4)
+    doc.setFillColor(...band.color)
+    doc.rect(bx, legendY, 3, 3, 'F')
+    doc.setFontSize(5)
+    doc.setTextColor(...COLORS.gray)
+    doc.setFont('helvetica', 'normal')
+    doc.text(band.label, bx + 4, legendY + 2.5)
+  })
+
+  // @ts-ignore
+  doc.setLineCap(0)
+  doc.setTextColor(...COLORS.dark)
+  doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.3)
-  doc.rect(14, y, pageW - 28, 7, 'S')
-  doc.setTextColor(...COLORS.dark)
+
+  return startY + gaugeH + 5
+}
+
+// ─── Anotações Resumo Table (9 rows) ─────────────────────────────────────────
+
+function drawAnotacoesResumo(doc: jsPDF, anotacoes: AnotacoesData, y: number, title: string): number {
+  const pageW = doc.internal.pageSize.getWidth()
+  const colWidths = [68, 18, 38, 28, 28]  // Tipo | Qtd | Período | Valor | Mais Recente
+  const headers = ['Tipo de Anotação', 'Qtd', 'Período', 'Valor (R$)', 'Mais Recente']
+  const startX = 14
+
+  // Header row
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(startX, y, pageW - 28, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.setLineWidth(0.3)
+  doc.rect(startX, y, pageW - 28, 7, 'S')
+
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
-  doc.text('Credor', 17, y + 5)
-  doc.text('Tipo', 80, y + 5)
-  doc.text('Data', 130, y + 5)
-  doc.text('Valor', pageW - 17, y + 5, { align: 'right' })
+  doc.setTextColor(...COLORS.dark)
 
+  let xPos = startX + 2
+  headers.forEach((h, idx) => {
+    if (idx === 0) {
+      doc.text(h, xPos, y + 5)
+    } else if (idx === 3 || idx === 2) {
+      doc.text(h, xPos + colWidths[idx] - 2, y + 5, { align: 'right' })
+    } else {
+      doc.text(h, xPos, y + 5)
+    }
+    xPos += colWidths[idx]
+  })
   y += 7
-  anotacoes.itens.forEach((item, i) => {
-    y = checkPageBreak(doc, y, 10);
+
+  anotacoes.resumo.forEach((row, i) => {
+    y = checkPageBreak(doc, y, 7, title)
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 250)
+      doc.rect(startX, y, pageW - 28, 6.5, 'F')
+    }
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+
+    const hasData = row.quantidade > 0
+    let cx = startX + 2
+
+    // Tipo
+    doc.text(row.tipo, cx, y + 4.5)
+    cx += colWidths[0]
+
+    // Quantidade
+    if (hasData) {
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.danger)
+      doc.text(String(row.quantidade), cx, y + 4.5)
+    } else {
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.success)
+      doc.text('NADA CONSTA', cx, y + 4.5)
+    }
+    cx += colWidths[1]
+
+    // Período
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+    doc.text(hasData ? row.periodo : '-', cx + colWidths[2] - 2, y + 4.5, { align: 'right' })
+    cx += colWidths[2]
+
+    // Valor
+    if (hasData) {
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.danger)
+      doc.text(formatCurrency(row.valor), cx + colWidths[3] - 2, y + 4.5, { align: 'right' })
+    } else {
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.gray)
+      doc.text('-', cx + colWidths[3] - 2, y + 4.5, { align: 'right' })
+    }
+    cx += colWidths[3]
+
+    // Mais Recente
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+    doc.text(hasData ? row.maisRecente : '-', cx, y + 4.5)
+
+    y += 6.5
+  })
+
+  doc.setTextColor(...COLORS.dark)
+  return y + 4
+}
+
+// ─── PEFIN / REFIN Detail Table ───────────────────────────────────────────────
+
+function drawPefinTable(doc: jsPDF, items: PefinDetalhe[], sectionLabel: string, y: number, title: string): number {
+  if (!items.length) return y
+
+  const pageW = doc.internal.pageSize.getWidth()
+
+  y = checkPageBreak(doc, y, 16, title)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.orange)
+  doc.text(`Detalhe ${sectionLabel}`, 14, y + 5)
+  doc.setDrawColor(220, 220, 220)
+  doc.line(14, y + 7, pageW - 14, y + 7)
+  y += 12
+
+  // Header
+  const headers = ['Contrato', 'Modalidade', 'Empresa', 'Data', 'Valor', 'Avalista']
+  const colW =    [20,         32,            60,         18,    22,      28]
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(14, y, pageW - 28, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.rect(14, y, pageW - 28, 7, 'S')
+  doc.setFontSize(6.5)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  let xh = 16
+  headers.forEach((h, idx) => {
+    doc.text(h, xh, y + 5)
+    xh += colW[idx]
+  })
+  y += 7
+
+  items.forEach((item, i) => {
+    y = checkPageBreak(doc, y, 7, title)
     if (i % 2 === 0) {
       doc.setFillColor(248, 249, 250)
       doc.rect(14, y, pageW - 28, 6.5, 'F')
     }
-    doc.setTextColor(...COLORS.dark)
-    doc.setFontSize(7)
+    doc.setFontSize(6.5)
     doc.setFont('helvetica', 'normal')
-    doc.text(item.credor?.substring(0, 30) || '-', 17, y + 4.5)
-    doc.text(item.tipo?.substring(0, 20) || '-', 80, y + 4.5)
-    doc.text(formatDate(item.data), 130, y + 4.5)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...COLORS.danger)
-    doc.text(formatCurrency(item.valor), pageW - 17, y + 4.5, { align: 'right' })
     doc.setTextColor(...COLORS.dark)
-    doc.setFont('helvetica', 'normal')
+    let xc = 16
+    const vals = [
+      item.contrato.substring(0, 10),
+      item.modalidade.substring(0, 18),
+      item.empresa.substring(0, 30),
+      item.data,
+      formatCurrency(item.valor),
+      item.avalista.substring(0, 14),
+    ]
+    vals.forEach((v, idx) => {
+      if (idx === 4) {
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...COLORS.danger)
+      }
+      doc.text(v, xc, y + 4.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.dark)
+      xc += colW[idx]
+    })
     y += 6.5
   })
 
-  return y + 5
+  return y + 4
 }
 
-// ─── PDF: Básica PF ──────────────────────────────────────────────────────────
+// ─── Protestos Detail Table ───────────────────────────────────────────────────
 
-export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Array> {
-  const doc = createPDF()
+function drawProtestosTable(doc: jsPDF, items: ProtestoDetalhe[], y: number, title: string): number {
+  if (!items.length) return y
+
   const pageW = doc.internal.pageSize.getWidth()
 
-  ;(doc as any).__title = 'CONSULTA BÁSICA PF'; (doc as any).__subtitle = 'Pessoa Física'; drawHeader(doc, (doc as any).__title, (doc as any).__subtitle)
-  let y = 62
-
-  // Identificação
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '1. Identificação', y)
-  y = drawTwoColumns(doc, [
-    ['Nome', data.identificacao?.nome],
-    ['CPF', formatCPF(data.identificacao?.cpf || '')],
-    ['Nascimento', formatDate(data.identificacao?.dataNascimento)],
-    ['Sexo', data.identificacao?.sexo === 'M' ? 'Masculino' : 'Feminino'],
-  ], y)
-  y += 4
-
-  // Status
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '2. Status do CPF', y)
-  drawField(doc, 'Situação Receita', '', 14, y + 3)
-  drawStatusBadge(doc, data.status?.situacaoReceita || 'REGULAR', 55, y + 3)
-  drawField(doc, 'Óbito', data.status?.obitos ? 'SIM' : 'NÃO', 14 + 92, y + 3)
-  drawField(doc, 'PEP', data.status?.pep ? 'SIM' : 'NÃO', 14 + 92 + 55, y + 3)
+  y = checkPageBreak(doc, y, 16, title)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.orange)
+  doc.text('Detalhe Protestos', 14, y + 5)
+  doc.setDrawColor(220, 220, 220)
+  doc.line(14, y + 7, pageW - 14, y + 7)
   y += 12
 
-  // Anotações
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '3. Anotações Negativas', y)
-  y = drawAnotacoesTable(doc, data.anotacoes, y)
-  y += 4
-
-  // Score Gauge
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '4. Score de Crédito', y)
-  const score = data.score?.pontuacao || 0
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...COLORS.gray)
-  doc.text(`Percentil Brasil: ${data.score?.percentilBrasil || 0}%`, 14, y + 4)
+  const headers = ['Cartório', 'Cidade', 'UF', 'Data', 'Valor']
+  const colW =    [28,         60,        15,   22,     55]
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(14, y, pageW - 28, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.rect(14, y, pageW - 28, 7, 'S')
+  doc.setFontSize(6.5)
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  y = drawScoreGauge(doc, score, pageW / 2, y + 8)
-  y += 5
+  let xh = 16
+  headers.forEach((h, idx) => {
+    doc.text(h, xh, y + 5)
+    xh += colW[idx]
+  })
+  y += 7
 
-  // Participações Societárias
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '5. Participações Societárias', y)
-  if (!data.participacoes?.empresas?.length) {
+  items.forEach((item, i) => {
+    y = checkPageBreak(doc, y, 7, title)
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 250)
+      doc.rect(14, y, pageW - 28, 6.5, 'F')
+    }
+    doc.setFontSize(6.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+    let xc = 16
+    const vals = [item.cartorio, item.cidade.substring(0, 30), item.uf, item.data, formatCurrency(item.valor)]
+    vals.forEach((v, idx) => {
+      if (idx === 4) { doc.setFont('helvetica', 'bold'); doc.setTextColor(...COLORS.danger) }
+      doc.text(v, xc, y + 4.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.dark)
+      xc += colW[idx]
+    })
+    y += 6.5
+  })
+
+  return y + 4
+}
+
+// ─── Ações Judiciais Detail Table ─────────────────────────────────────────────
+
+function drawAcoesJudiciaisTable(doc: jsPDF, items: AcaoJudicialDetalhe[], y: number, title: string): number {
+  if (!items.length) return y
+
+  const pageW = doc.internal.pageSize.getWidth()
+
+  y = checkPageBreak(doc, y, 16, title)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.orange)
+  doc.text('Detalhe Ações Judiciais', 14, y + 5)
+  doc.setDrawColor(220, 220, 220)
+  doc.line(14, y + 7, pageW - 14, y + 7)
+  y += 12
+
+  const headers = ['Natureza', 'Distr', 'Vara', 'Cidade', 'UF', 'Data', 'Valor']
+  const colW =    [40,          12,      12,     42,        12,   18,     42]
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(14, y, pageW - 28, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.rect(14, y, pageW - 28, 7, 'S')
+  doc.setFontSize(6.5)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  let xh = 16
+  headers.forEach((h, idx) => {
+    doc.text(h, xh, y + 5)
+    xh += colW[idx]
+  })
+  y += 7
+
+  items.forEach((item, i) => {
+    y = checkPageBreak(doc, y, 7, title)
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 250)
+      doc.rect(14, y, pageW - 28, 6.5, 'F')
+    }
+    doc.setFontSize(6.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+    let xc = 16
+    const vals = [
+      item.natureza.substring(0, 20),
+      item.distribuidor.substring(0, 6),
+      item.vara.substring(0, 6),
+      item.cidade.substring(0, 22),
+      item.uf,
+      item.data,
+      formatCurrency(item.valor),
+    ]
+    vals.forEach((v, idx) => {
+      if (idx === 6) { doc.setFont('helvetica', 'bold'); doc.setTextColor(...COLORS.danger) }
+      doc.text(v, xc, y + 4.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.dark)
+      xc += colW[idx]
+    })
+    y += 6.5
+  })
+
+  return y + 4
+}
+
+// ─── Participações Table (PF) ─────────────────────────────────────────────────
+
+function drawParticipacoes(doc: jsPDF, participacoes: Participacao[], y: number, title: string): number {
+  const pageW = doc.internal.pageSize.getWidth()
+
+  if (!participacoes.length) {
     doc.setFontSize(8)
     doc.setTextColor(...COLORS.gray)
     doc.text('Nenhuma participação societária encontrada.', 14, y + 5)
+    doc.setTextColor(...COLORS.dark)
+    return y + 10
+  }
+
+  // Header
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(14, y, pageW - 28, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.rect(14, y, pageW - 28, 7, 'S')
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text('Empresa', 17, y + 5)
+  doc.text('CNPJ', 90, y + 5)
+  doc.text('Part.(%)', 132, y + 5)
+  doc.text('UF', 155, y + 5)
+  y += 7
+
+  participacoes.forEach((emp, i) => {
+    y = checkPageBreak(doc, y, 14, title)
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 250)
+      doc.rect(14, y, pageW - 28, 13, 'F')
+    }
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.dark)
+    doc.text(emp.razaoSocial.substring(0, 38), 17, y + 4.5)
+    doc.text(formatCNPJ(emp.cnpj), 90, y + 4.5)
+    doc.text(emp.participacao, 132, y + 4.5)
+    doc.text(emp.uf, 155, y + 4.5)
+
+    // Status line below
+    doc.setFontSize(6)
+    doc.setTextColor(...COLORS.gray)
+    const statusLine = `${emp.statusCnpj !== '-' ? emp.statusCnpj : ''}${emp.desde !== '-' ? ` | Desde: ${emp.desde}` : ''}${emp.ultimaAtualizacao !== '-' ? ` | Últ. Atualiz.: ${emp.ultimaAtualizacao}` : ''}`
+    doc.text(statusLine.trim() || '-', 17, y + 9.5)
+    doc.setTextColor(...COLORS.dark)
+
+    y += 13
+  })
+
+  return y + 4
+}
+
+// ─── Sócios e Administradores (PJ) ────────────────────────────────────────────
+
+function drawSociosAdmin(
+  doc: jsPDF,
+  socios: Array<{ documento: string; nome: string; participacao: string }>,
+  administradores: Array<{ documento: string; nome: string; cargo: string }>,
+  y: number,
+  title: string
+): number {
+  const pageW = doc.internal.pageSize.getWidth()
+
+  // Sócios e Acionistas
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text('Sócios e Acionistas', 14, y + 4)
+  y += 7
+
+  if (!socios.length) {
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    doc.text('Nenhum sócio/acionista encontrado.', 14, y + 4)
     doc.setTextColor(...COLORS.dark)
     y += 10
   } else {
     doc.setFillColor(...COLORS.lightGray)
     doc.rect(14, y, pageW - 28, 7, 'F')
-    doc.setDrawColor(230, 230, 230)
-    doc.setLineWidth(0.3)
+    doc.setDrawColor(220, 220, 220)
     doc.rect(14, y, pageW - 28, 7, 'S')
-    doc.setTextColor(...COLORS.dark)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'bold')
-    doc.text('Empresa', 17, y + 5)
-    doc.text('CNPJ', 100, y + 5)
-    doc.text('Participação', 150, y + 5)
+    doc.setTextColor(...COLORS.dark)
+    doc.text('CPF/CNPJ', 17, y + 5)
+    doc.text('Nome', 65, y + 5)
+    doc.text('% Capital', pageW - 17, y + 5, { align: 'right' })
     y += 7
 
-    data.participacoes.empresas.forEach((emp, i) => {
-      y = checkPageBreak(doc, y, 10);
+    socios.forEach((s, i) => {
+      y = checkPageBreak(doc, y, 7, title)
       if (i % 2 === 0) {
         doc.setFillColor(248, 249, 250)
         doc.rect(14, y, pageW - 28, 6.5, 'F')
       }
-      doc.setTextColor(...COLORS.dark)
       doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
-      doc.text(emp.razaoSocial?.substring(0, 45) || '-', 17, y + 4.5)
-      doc.text(formatCNPJ(emp.cnpj) || '-', 100, y + 4.5)
-      doc.text(emp.participacao || '-', 150, y + 4.5)
-      y += 6.5
-    })
-    y += 5
-  }
-
-  drawFooter(doc)
-  return doc.output('arraybuffer') as unknown as Uint8Array
-}
-
-// ─── PDF: Básica PJ ──────────────────────────────────────────────────────────
-
-export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Array> {
-  const doc = createPDF()
-  const pageW = doc.internal.pageSize.getWidth()
-
-  ;(doc as any).__title = 'CONSULTA BÁSICA PJ'; (doc as any).__subtitle = 'Pessoa Jurídica'; drawHeader(doc, (doc as any).__title, (doc as any).__subtitle)
-  let y = 62
-
-  // Identificação
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '1. Identificação', y)
-  y = drawTwoColumns(doc, [
-    ['Razão Social', data.identificacao?.razaoSocial],
-    ['CNPJ', formatCNPJ(data.identificacao?.cnpj || '')],
-    ['Nome Fantasia', data.identificacao?.nomeFantasia],
-    ['Abertura', formatDate(data.identificacao?.dataAbertura)],
-    ['Natureza Jurídica', data.identificacao?.naturezaJuridica],
-    ['Porte', data.identificacao?.porte],
-    ['Atividade Principal', data.identificacao?.atividadePrincipal],
-    ['Situação', data.identificacao?.situacaoCadastral],
-  ], y)
-  y += 4
-
-  // Status
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '2. Status da Empresa', y)
-  drawField(doc, 'Situação Receita', '', 14, y + 3)
-  drawStatusBadge(doc, data.status?.situacaoReceita || 'ATIVA', 55, y + 3)
-  drawField(doc, 'Dívida Ativa', data.status?.dividaAtiva ? 'SIM' : 'NÃO', 14 + 92, y + 3)
-  y += 12
-
-  // Anotações
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '3. Anotações Negativas', y)
-  y = drawAnotacoesTable(doc, data.anotacoes, y)
-  y += 4
-
-  // Detalhamento societário
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '4. Detalhamento Societário', y)
-  drawField(doc, 'Capital Social', formatCurrency(data.detalhamento?.capitalSocial || 0), 14, y + 5)
-  y += 10
-
-  // Sócios
-  if (data.detalhamento?.socios?.length) {
-    doc.setFillColor(...COLORS.lightGray)
-    doc.rect(14, y, pageW - 28, 7, 'F')
-    doc.setDrawColor(230, 230, 230)
-    doc.setLineWidth(0.3)
-    doc.rect(14, y, pageW - 28, 7, 'S')
-    doc.setTextColor(...COLORS.dark)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Nome', 17, y + 5)
-    doc.text('CPF', 80, y + 5)
-    doc.text('Cargo', 120, y + 5)
-    doc.text('Participação', pageW - 17, y + 5, { align: 'right' })
-    y += 7
-
-    data.detalhamento.socios.forEach((s, i) => {
-      y = checkPageBreak(doc, y, 10);
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 249, 250)
-        doc.rect(14, y, pageW - 28, 6.5, 'F')
-      }
       doc.setTextColor(...COLORS.dark)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-      doc.text(s.nome || '-', 17, y + 4.5)
-      doc.text(formatCPF(s.cpf || ''), 80, y + 4.5)
-      doc.text(s.cargo || '-', 120, y + 4.5)
-      doc.text(s.participacao || '-', pageW - 17, y + 4.5, { align: 'right' })
+      doc.text(s.documento.length === 11 ? formatCPF(s.documento) : formatCNPJ(s.documento), 17, y + 4.5)
+      doc.text(s.nome.substring(0, 55), 65, y + 4.5)
+      doc.text(s.participacao, pageW - 17, y + 4.5, { align: 'right' })
       y += 6.5
     })
+    y += 4
   }
 
-  drawFooter(doc)
-  return doc.output('arraybuffer') as unknown as Uint8Array
-}
-
-// ─── PDF: Rating PF ──────────────────────────────────────────────────────────
-
-export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Array> {
-  const doc = createPDF()
-  const pageW = doc.internal.pageSize.getWidth()
-
-  ;(doc as any).__title = 'CONSULTA RATING PF'; (doc as any).__subtitle = 'Análise Completa — Pessoa Física'; drawHeader(doc, (doc as any).__title, (doc as any).__subtitle)
-  let y = 62
-
-  // Identificação
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '1. Identificação', y)
-  y = drawTwoColumns(doc, [
-    ['Nome', data.identificacao?.nome],
-    ['CPF', formatCPF(data.identificacao?.cpf || '')],
-    ['Nascimento', formatDate(data.identificacao?.dataNascimento)],
-    ['Situação CPF', data.status?.situacaoReceita],
-  ], y)
-  y += 4
-
-  // Anotações
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '2. Anotações Negativas', y)
-  y = drawAnotacoesTable(doc, data.anotacoes, y)
-  y += 4
-
-  // Score
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '3. Score de Crédito', y)
+  // Administradores
+  y = checkPageBreak(doc, y, 16, title)
   doc.setFontSize(8)
-  doc.text(`Percentil Brasil: ${data.score?.percentilBrasil || 0}%`, 14, y + 4)
-  y = drawScoreGauge(doc, data.score?.pontuacao || 0, pageW / 2, y + 8)
-  y += 5
-
-  // Renda
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '4. Informações de Renda', y)
-  y = drawTwoColumns(doc, [
-    ['Renda Estimada', formatCurrency(data.renda?.rendaEstimada || 0)],
-    ['Faixa de Renda', data.renda?.faixaRenda],
-    ['Fonte', data.renda?.fonteRenda],
-    ['', ''],
-  ], y)
-  y += 4
-
-  // Capacidade de Pagamento
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '5. Capacidade de Pagamento', y)
-  const risco = data.capacidadePagamento?.classificacaoRisco || '-'
-  const riscoColor = risco === 'BAIXO' ? COLORS.success : risco === 'MÉDIO' ? COLORS.warning : COLORS.danger
-
-  doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(14, y, pageW - 28, 28, 2, 2, 'F')
-
-  doc.setFontSize(8)
-  doc.setTextColor(...COLORS.gray)
-  doc.text('Limite Recomendado', 20, y + 8)
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
-  doc.text(formatCurrency(data.capacidadePagamento?.limiteRecomendado || 0), 20, y + 18)
-
-  doc.setFontSize(8)
-  doc.setTextColor(...COLORS.gray)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Comprometimento de Renda', pageW / 2, y + 8, { align: 'center' })
-  doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(`${data.capacidadePagamento?.comprometimentoRenda || 0}%`, pageW / 2, y + 18, { align: 'center' })
+  doc.text('Administradores', 14, y + 4)
+  y += 7
 
-  doc.setFontSize(8)
-  doc.setTextColor(...COLORS.gray)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Classificação de Risco', pageW - 20, y + 8, { align: 'right' })
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...riscoColor)
-  doc.text(risco, pageW - 20, y + 18, { align: 'right' })
+  if (!administradores.length) {
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    doc.text('Nenhum administrador encontrado.', 14, y + 4)
+    doc.setTextColor(...COLORS.dark)
+    y += 10
+  } else {
+    doc.setFillColor(...COLORS.lightGray)
+    doc.rect(14, y, pageW - 28, 7, 'F')
+    doc.setDrawColor(220, 220, 220)
+    doc.rect(14, y, pageW - 28, 7, 'S')
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.dark)
+    doc.text('CPF/CNPJ', 17, y + 5)
+    doc.text('Nome', 65, y + 5)
+    doc.text('Cargo', pageW - 17, y + 5, { align: 'right' })
+    y += 7
 
-  y += 34
+    administradores.forEach((a, i) => {
+      y = checkPageBreak(doc, y, 7, title)
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 249, 250)
+        doc.rect(14, y, pageW - 28, 6.5, 'F')
+      }
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.dark)
+      doc.text(a.documento.length === 11 ? formatCPF(a.documento) : formatCNPJ(a.documento), 17, y + 4.5)
+      doc.text(a.nome.substring(0, 55), 65, y + 4.5)
+      doc.text(a.cargo.substring(0, 25), pageW - 17, y + 4.5, { align: 'right' })
+      y += 6.5
+    })
+    y += 4
+  }
 
-  // Histórico
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '6. Histórico de Pagamentos', y)
+  return y
+}
+
+// ─── PDF: Básica PF ───────────────────────────────────────────────────────────
+
+export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Array> {
+  const TITLE = 'CONSULTA BÁSICA PF'
+  const doc = createPDF()
+  const pageW = doc.internal.pageSize.getWidth()
+  drawHeader(doc, TITLE)
+  let y = 62
+
+  // 1. Identificação
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '1. Identificação', y)
+  const id = data.identificacao
   y = drawTwoColumns(doc, [
-    ['Pontualidade', `${data.historicoPagamentos?.pontualidade || 0}%`],
-    ['Em Dia', String(data.historicoPagamentos?.pagamentosEmDia || 0)],
-    ['Atrasados', String(data.historicoPagamentos?.pagamentosAtrasados || 0)],
-    ['', ''],
+    ['Nome', id.nome],
+    ['CPF', formatCPF(id.cpf)],
+    ['Data de Nascimento', id.dataNascimento],
+    ['Nome da Mãe', id.nomeMae],
   ], y)
+  // Situação do CPF line
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLORS.gray)
+  doc.text(`Situação do CPF: `, 14, y + 3)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text(id.situacaoCpf || 'REGULAR', 14 + 32, y + 3)
+  y += 10
+
+  // 2. Anotações Negativas - Resumo
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '2. Anotações Negativas — Resumo', y)
+  y = drawAnotacoesResumo(doc, data.anotacoes, y, TITLE)
+
+  // Detail tables (only when data exists)
+  if (data.anotacoes.pefin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.pefin, 'PEFIN', y, TITLE)
+  }
+  if (data.anotacoes.refin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.refin, 'REFIN', y, TITLE)
+  }
+  if (data.anotacoes.protestos.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawProtestosTable(doc, data.anotacoes.protestos, y, TITLE)
+  }
+  if (data.anotacoes.acoesJudiciais.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawAcoesJudiciaisTable(doc, data.anotacoes.acoesJudiciais, y, TITLE)
+  }
+  y += 4
+
+  // 3. Participação Societária
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '3. Participação Societária', y)
+  y = drawParticipacoes(doc, data.participacoes, y, TITLE)
+
+  // 4. Serasa Score com Positivo
+  y = checkPageBreak(doc, y, 55, TITLE)
+  y = drawSectionTitle(doc, '4. Serasa Score com Positivo', y)
+  y = drawScoreGaugePF(doc, data.score.pontuacao, data.score.chancePagamento, pageW / 2, y)
 
   drawFooter(doc)
   return doc.output('arraybuffer') as unknown as Uint8Array
 }
 
-// ─── PDF: Rating PJ ──────────────────────────────────────────────────────────
+// ─── PDF: Básica PJ ───────────────────────────────────────────────────────────
 
-export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Array> {
+export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Array> {
+  const TITLE = 'CONSULTA BÁSICA PJ'
   const doc = createPDF()
   const pageW = doc.internal.pageSize.getWidth()
-
-  ;(doc as any).__title = 'CONSULTA RATING PJ'; (doc as any).__subtitle = 'Análise Completa — Pessoa Jurídica'; drawHeader(doc, (doc as any).__title, (doc as any).__subtitle)
+  drawHeader(doc, TITLE)
   let y = 62
 
-  // Identificação
-  y = checkPageBreak(doc, y, 20);
+  // 1. Identificação
+  y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '1. Identificação', y)
+  const id = data.identificacao
   y = drawTwoColumns(doc, [
-    ['Razão Social', data.identificacao?.razaoSocial],
-    ['CNPJ', formatCNPJ(data.identificacao?.cnpj || '')],
-    ['Situação', data.identificacao?.situacaoCadastral],
-    ['Abertura', formatDate(data.identificacao?.dataAbertura)],
+    ['Razão Social', id.razaoSocial],
+    ['CNPJ', formatCNPJ(id.cnpj)],
+    ['Data de Fundação', id.dataFundacao],
+    ['UF / Município', `${id.uf} / ${id.municipio}`],
   ], y)
-  y += 4
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLORS.gray)
+  doc.text('Situação do CNPJ: ', 14, y + 3)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text(id.situacaoCnpj || 'ATIVA', 14 + 34, y + 3)
+  y += 10
 
-  // Anotações
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '2. Anotações Negativas', y)
-  y = drawAnotacoesTable(doc, data.anotacoes, y)
-  y += 4
+  // 2. Anotações Negativas - Resumo
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '2. Anotações Negativas — Resumo', y)
+  y = drawAnotacoesResumo(doc, data.anotacoes, y, TITLE)
 
-  // Score
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '3. Score Empresarial', y)
-  y = drawScoreGauge(doc, data.score?.pontuacao || 0, pageW / 2, y + 5)
-  y += 8
-
-  // Risco e Rating
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '4. Classificação de Risco', y)
-  doc.setFillColor(...COLORS.lightGray)
-  doc.roundedRect(14, y, pageW - 28, 22, 2, 2, 'F')
-
-  const riscoClass = data.risco?.classificacao || '-'
-  const riscoColor = riscoClass === 'BAIXO' ? COLORS.success : riscoClass === 'MÉDIO' ? COLORS.warning : COLORS.danger
-
-  doc.setFontSize(8); doc.setTextColor(...COLORS.gray)
-  doc.text('Rating', 20, y + 8)
-  doc.setFontSize(20); doc.setFont('helvetica', 'bold'); doc.setTextColor(...COLORS.primary)
-  doc.text(data.risco?.rating || '-', 20, y + 18)
-
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...COLORS.gray)
-  doc.text('Classificação', pageW / 2, y + 8, { align: 'center' })
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(...riscoColor)
-  doc.text(riscoClass, pageW / 2, y + 18, { align: 'center' })
-
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...COLORS.gray)
-  doc.text('Prob. Inadimplência', pageW - 20, y + 8, { align: 'right' })
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(...COLORS.dark)
-  doc.text(`${data.risco?.probabilidadeInadimplencia || 0}%`, pageW - 20, y + 18, { align: 'right' })
-
-  y += 30
-
-  // Faturamento e Limite
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '5. Análise Financeira', y)
-  y = drawTwoColumns(doc, [
-    ['Faturamento Estimado', formatCurrency(data.faturamento?.estimativaAnual || 0)],
-    ['Faixa de Faturamento', data.faturamento?.faixa],
-    ['Limite Recomendado', formatCurrency(data.limiteCredito?.recomendado || 0)],
-    ['Limite em Uso', formatCurrency(data.limiteCredito?.emUso || 0)],
-    ['Limite Disponível', formatCurrency(data.limiteCredito?.disponivel || 0)],
-    ['', ''],
-  ], y)
-  y += 4
-
-  // Sócios
-  y = checkPageBreak(doc, y, 20);
-  y = drawSectionTitle(doc, '6. Quadro Societário', y)
-  if (data.socios?.length) {
-    doc.setFillColor(...COLORS.lightGray)
-    doc.rect(14, y, pageW - 28, 7, 'F')
-    doc.setDrawColor(230, 230, 230)
-    doc.setLineWidth(0.3)
-    doc.rect(14, y, pageW - 28, 7, 'S')
-    doc.setTextColor(...COLORS.dark)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Sócio', 17, y + 5)
-    doc.text('CPF', 75, y + 5)
-    doc.text('Cargo', 115, y + 5)
-    doc.text('Part.', 150, y + 5)
-    doc.text('Score', pageW - 17, y + 5, { align: 'right' })
-    y += 7
-
-    data.socios.forEach((s, i) => {
-      y = checkPageBreak(doc, y, 10);
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 249, 250)
-        doc.rect(14, y, pageW - 28, 6.5, 'F')
-      }
-      doc.setTextColor(...COLORS.dark)
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-      doc.text(s.nome || '-', 17, y + 4.5)
-      doc.text(formatCPF(s.cpf || ''), 75, y + 4.5)
-      doc.text(s.cargo || '-', 115, y + 4.5)
-      doc.text(s.participacao || '-', 150, y + 4.5)
-      doc.setTextColor(...getScoreColor(s.scoreIndividual || 0))
-      doc.setFont('helvetica', 'bold')
-      doc.text(String(s.scoreIndividual || '-'), pageW - 17, y + 4.5, { align: 'right' })
-      doc.setTextColor(...COLORS.dark)
-      doc.setFont('helvetica', 'normal')
-      y += 6.5
-    })
+  if (data.anotacoes.pefin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.pefin, 'PEFIN', y, TITLE)
   }
+  if (data.anotacoes.protestos.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawProtestosTable(doc, data.anotacoes.protestos, y, TITLE)
+  }
+  if (data.anotacoes.acoesJudiciais.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawAcoesJudiciaisTable(doc, data.anotacoes.acoesJudiciais, y, TITLE)
+  }
+  y += 4
+
+  // 3. Faturamento Estimado com Positivo
+  y = checkPageBreak(doc, y, 16, TITLE)
+  y = drawSectionTitle(doc, '3. Faturamento Estimado com Positivo', y)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(
+    data.faturamento > 0 ? `${formatCurrency(data.faturamento)} ao ano` : '-',
+    14, y + 5
+  )
+  y += 14
+
+  // 4. Serasa Score 2.0
+  y = checkPageBreak(doc, y, 65, TITLE)
+  y = drawSectionTitle(doc, '4. Serasa Score 2.0', y)
+  y = drawScoreGaugePJ(doc, data.score.pontuacao, data.score.risco, pageW / 2, y)
+
+  // 5. Sócios e Administradores
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '5. Sócios e Administradores', y)
+  y = drawSociosAdmin(doc, data.socios, data.administradores, y, TITLE)
+
+  drawFooter(doc)
+  return doc.output('arraybuffer') as unknown as Uint8Array
+}
+
+// ─── PDF: Rating PF ───────────────────────────────────────────────────────────
+
+export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Array> {
+  const TITLE = 'CONSULTA RATING PF'
+  const doc = createPDF()
+  const pageW = doc.internal.pageSize.getWidth()
+  drawHeader(doc, TITLE)
+  let y = 62
+
+  // 1. Identificação
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '1. Identificação', y)
+  const id = data.identificacao
+  y = drawTwoColumns(doc, [
+    ['Nome', id.nome],
+    ['CPF', formatCPF(id.cpf)],
+    ['Data de Nascimento', id.dataNascimento],
+    ['Nome da Mãe', id.nomeMae],
+  ], y)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLORS.gray)
+  doc.text('Situação do CPF: ', 14, y + 3)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text(id.situacaoCpf || 'REGULAR', 14 + 32, y + 3)
+  y += 10
+
+  // 2. Anotações Negativas - Resumo
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '2. Anotações Negativas — Resumo', y)
+  y = drawAnotacoesResumo(doc, data.anotacoes, y, TITLE)
+
+  if (data.anotacoes.pefin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.pefin, 'PEFIN', y, TITLE)
+  }
+  if (data.anotacoes.refin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.refin, 'REFIN', y, TITLE)
+  }
+  if (data.anotacoes.protestos.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawProtestosTable(doc, data.anotacoes.protestos, y, TITLE)
+  }
+  if (data.anotacoes.acoesJudiciais.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawAcoesJudiciaisTable(doc, data.anotacoes.acoesJudiciais, y, TITLE)
+  }
+  y += 4
+
+  // 3. Participação Societária
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '3. Participação Societária', y)
+  y = drawParticipacoes(doc, data.participacoes, y, TITLE)
+
+  // 4. Serasa Score com Positivo
+  y = checkPageBreak(doc, y, 55, TITLE)
+  y = drawSectionTitle(doc, '4. Serasa Score com Positivo', y)
+  y = drawScoreGaugePF(doc, data.score.pontuacao, data.score.chancePagamento, pageW / 2, y)
+
+  // 5. Capacidade de Pagamento
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '5. Capacidade de Pagamento', y)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(
+    data.capacidadePagamento.min === 0 && data.capacidadePagamento.max === 0
+      ? '-'
+      : formatCurrencyRange(data.capacidadePagamento.min, data.capacidadePagamento.max),
+    14, y + 5
+  )
+  y += 14
+
+  // 6. Renda Estimada
+  y = checkPageBreak(doc, y, 16, TITLE)
+  y = drawSectionTitle(doc, '6. Renda Estimada', y)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(
+    data.renda.min === 0 && data.renda.max === 0
+      ? '-'
+      : formatCurrencyRange(data.renda.min, data.renda.max),
+    14, y + 5
+  )
+  y += 14
+
+  drawFooter(doc)
+  return doc.output('arraybuffer') as unknown as Uint8Array
+}
+
+// ─── PDF: Rating PJ ───────────────────────────────────────────────────────────
+
+export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Array> {
+  const TITLE = 'CONSULTA RATING PJ'
+  const doc = createPDF()
+  const pageW = doc.internal.pageSize.getWidth()
+  drawHeader(doc, TITLE)
+  let y = 62
+
+  // 1. Identificação
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '1. Identificação', y)
+  const id = data.identificacao
+  y = drawTwoColumns(doc, [
+    ['Razão Social', id.razaoSocial],
+    ['CNPJ', formatCNPJ(id.cnpj)],
+    ['Data de Fundação', id.dataFundacao],
+    ['UF / Município', `${id.uf} / ${id.municipio}`],
+  ], y)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...COLORS.gray)
+  doc.text('Situação do CNPJ: ', 14, y + 3)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text(id.situacaoCnpj || 'ATIVA', 14 + 34, y + 3)
+  y += 10
+
+  // 2. Anotações Negativas - Resumo
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '2. Anotações Negativas — Resumo', y)
+  y = drawAnotacoesResumo(doc, data.anotacoes, y, TITLE)
+
+  if (data.anotacoes.pefin.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawPefinTable(doc, data.anotacoes.pefin, 'PEFIN', y, TITLE)
+  }
+  if (data.anotacoes.protestos.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawProtestosTable(doc, data.anotacoes.protestos, y, TITLE)
+  }
+  if (data.anotacoes.acoesJudiciais.length) {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    y = drawAcoesJudiciaisTable(doc, data.anotacoes.acoesJudiciais, y, TITLE)
+  }
+  y += 4
+
+  // 3. Faturamento Estimado com Positivo
+  y = checkPageBreak(doc, y, 16, TITLE)
+  y = drawSectionTitle(doc, '3. Faturamento Estimado com Positivo', y)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(
+    data.faturamento > 0 ? `${formatCurrency(data.faturamento)} ao ano` : '-',
+    14, y + 5
+  )
+  y += 14
+
+  // 4. Score — Rating PJ (table-style)
+  y = checkPageBreak(doc, y, 40, TITLE)
+  y = drawSectionTitle(doc, '4. Pontuação de Risco', y)
+
+  const scoreRows: Array<[string, string]> = [
+    ['Pontuação', data.score.pontuacao === 0 ? 'Default' : String(data.score.pontuacao)],
+    ['Prob. Inadimplência', `${data.score.probabilidadeInadimplencia.toFixed(2)}%`],
+    ['Risco de Crédito', data.score.risco],
+    ['Práticas de Mercado', data.score.praticasMercado],
+  ]
+
+  const scoreTableW = pageW - 28
+  doc.setFillColor(...COLORS.lightGray)
+  doc.rect(14, y, scoreTableW, 7, 'F')
+  doc.setDrawColor(220, 220, 220)
+  doc.rect(14, y, scoreTableW, 7, 'S')
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.dark)
+  doc.text('Campo', 17, y + 5)
+  doc.text('Valor', 100, y + 5)
+  y += 7
+
+  scoreRows.forEach((row, i) => {
+    y = checkPageBreak(doc, y, 7, TITLE)
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 250)
+      doc.rect(14, y, scoreTableW, 6.5, 'F')
+    }
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    doc.text(row[0], 17, y + 4.5)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.dark)
+    doc.text(row[1], 100, y + 4.5)
+    y += 6.5
+  })
+
+  // Interpretação (multi-line)
+  if (data.score.interpretacao && data.score.interpretacao !== '-') {
+    y = checkPageBreak(doc, y, 14, TITLE)
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...COLORS.gray)
+    const lines = doc.splitTextToSize(`Interpretação: ${data.score.interpretacao}`, scoreTableW - 4)
+    doc.text(lines, 17, y + 4)
+    y += lines.length * 4 + 4
+  }
+
+  y += 4
+
+  // 5. Limite de Crédito
+  y = checkPageBreak(doc, y, 16, TITLE)
+  y = drawSectionTitle(doc, '5. Limite de Crédito', y)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...COLORS.primary)
+  doc.text(
+    data.limiteCredito > 0 ? formatCurrency(data.limiteCredito) : '-',
+    14, y + 5
+  )
+  y += 14
+
+  // 6. Sócios e Administradores
+  y = checkPageBreak(doc, y, 20, TITLE)
+  y = drawSectionTitle(doc, '6. Sócios e Administradores', y)
+  y = drawSociosAdmin(doc, data.socios, data.administradores, y, TITLE)
 
   drawFooter(doc)
   return doc.output('arraybuffer') as unknown as Uint8Array

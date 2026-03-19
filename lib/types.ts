@@ -78,7 +78,66 @@ export interface PixPayment {
   created_at: string
 }
 
-// Consultation result types
+// ─── Annotation Detail Types ─────────────────────────────────────────────────
+
+export interface ResumoAnotacao {
+  tipo: string
+  quantidade: number
+  periodo: string       // "DD/MM/AAAA a DD/MM/AAAA" or "-"
+  valor: number
+  maisRecente: string   // date string or "-"
+}
+
+export interface PefinDetalhe {
+  contrato: string
+  modalidade: string
+  empresa: string
+  data: string
+  valor: number
+  avalista: string
+  local: string
+}
+
+export interface ProtestoDetalhe {
+  cartorio: string
+  cidade: string
+  uf: string
+  data: string
+  valor: number
+}
+
+export interface AcaoJudicialDetalhe {
+  natureza: string
+  distribuidor: string
+  vara: string
+  cidade: string
+  uf: string
+  data: string
+  valor: number
+}
+
+// ─── Partnership ─────────────────────────────────────────────────────────────
+
+export interface Participacao {
+  razaoSocial: string
+  cnpj: string
+  participacao: string   // e.g. "100%"
+  uf: string
+  statusCnpj: string     // e.g. "SITUACAO DO CNPJ EM 12/07/2025: ATIVA"
+  desde: string          // entryDate
+  ultimaAtualizacao: string
+}
+
+// ─── Consultation result types ────────────────────────────────────────────────
+
+export interface AnotacoesData {
+  resumo: ResumoAnotacao[]
+  pefin: PefinDetalhe[]
+  refin: PefinDetalhe[]
+  protestos: ProtestoDetalhe[]
+  acoesJudiciais: AcaoJudicialDetalhe[]
+}
+
 export interface BasicaPFResult {
   tipo: 'basica_pf'
   documento: string
@@ -86,27 +145,15 @@ export interface BasicaPFResult {
     nome: string
     cpf: string
     dataNascimento: string
-    sexo: string
+    nomeMae: string
     situacaoCpf: string
   }
-  status: {
-    situacaoReceita: string
-    obitos: boolean
-    pep: boolean
-  }
-  anotacoes: {
-    totalDividas: number
-    valorTotal: number
-    itens: Array<{ credor: string; valor: number; data: string; tipo: string }>
-  }
+  anotacoes: AnotacoesData
   score: {
     pontuacao: number
-    faixa: string
-    percentilBrasil: number
+    chancePagamento: number   // percentile = "XX% Chance de Pagamento"
   }
-  participacoes: {
-    empresas: Array<{ razaoSocial: string; cnpj: string; participacao: string; dataEntrada: string }>
-  }
+  participacoes: Participacao[]
   consultadoEm: string
 }
 
@@ -115,49 +162,45 @@ export interface BasicaPJResult {
   documento: string
   identificacao: {
     razaoSocial: string
-    nomeFantasia: string
     cnpj: string
-    situacaoCadastral: string
-    dataAbertura: string
-    naturezaJuridica: string
-    porte: string
-    atividadePrincipal: string
+    dataFundacao: string
+    uf: string
+    municipio: string
+    situacaoCnpj: string
   }
-  status: {
-    situacaoReceita: string
-    dividaAtiva: boolean
+  anotacoes: AnotacoesData
+  score: {
+    pontuacao: number         // 0-1000 or 0 means "Default"
+    risco: string             // "IMINENTE" | "ALTO" | "MÉDIO" | "BAIXO" | "MÍNIMO"
+    probabilidadeInadimplencia: number
+    praticasMercado: string
+    interpretacao: string
   }
-  anotacoes: {
-    totalDividas: number
-    valorTotal: number
-    itens: Array<{ credor: string; valor: number; data: string; tipo: string }>
-  }
-  detalhamento: {
-    capitalSocial: number
-    socios: Array<{ nome: string; cpf: string; participacao: string; cargo: string }>
-    enderecos: Array<{ tipo: string; logradouro: string; bairro: string; cidade: string; uf: string; cep: string }>
-  }
+  faturamento: number         // annualEstimation
+  socios: Array<{ documento: string; nome: string; participacao: string }>
+  administradores: Array<{ documento: string; nome: string; cargo: string }>
   consultadoEm: string
 }
 
-export interface RatingPFResult extends Omit<BasicaPFResult, 'tipo'> {
+export interface RatingPFResult {
   tipo: 'rating_pf'
-  renda: {
-    rendaEstimada: number
-    faixaRenda: string
-    fonteRenda: string
+  documento: string
+  identificacao: {
+    nome: string
+    cpf: string
+    dataNascimento: string
+    nomeMae: string
+    situacaoCpf: string
   }
-  capacidadePagamento: {
-    limiteRecomendado: number
-    comprometimentoRenda: number
-    probabilidadeInadimplencia: number
-    classificacaoRisco: string
+  anotacoes: AnotacoesData
+  score: {
+    pontuacao: number
+    chancePagamento: number
   }
-  historicoPagamentos: {
-    pontualidade: number
-    pagamentosEmDia: number
-    pagamentosAtrasados: number
-  }
+  participacoes: Participacao[]
+  renda: { min: number; max: number }
+  capacidadePagamento: { min: number; max: number }
+  consultadoEm: string
 }
 
 export interface RatingPJResult {
@@ -166,18 +209,22 @@ export interface RatingPJResult {
   identificacao: {
     razaoSocial: string
     cnpj: string
-    situacaoCadastral: string
-    dataAbertura: string
+    dataFundacao: string
+    uf: string
+    municipio: string
+    situacaoCnpj: string
   }
-  anotacoes: {
-    totalDividas: number
-    valorTotal: number
-    itens: Array<{ credor: string; valor: number; data: string; tipo: string }>
+  anotacoes: AnotacoesData
+  score: {
+    pontuacao: number
+    probabilidadeInadimplencia: number
+    risco: string
+    praticasMercado: string
+    interpretacao: string
   }
-  score: { pontuacao: number; faixa: string; percentilBrasil: number }
-  risco: { classificacao: string; probabilidadeInadimplencia: number; rating: string }
-  faturamento: { estimativaAnual: number; faixa: string }
-  limiteCredito: { recomendado: number; emUso: number; disponivel: number }
-  socios: Array<{ nome: string; cpf: string; participacao: string; cargo: string; scoreIndividual: number }>
+  faturamento: number
+  limiteCredito: number
+  socios: Array<{ documento: string; nome: string; participacao: string }>
+  administradores: Array<{ documento: string; nome: string; cargo: string }>
   consultadoEm: string
 }
