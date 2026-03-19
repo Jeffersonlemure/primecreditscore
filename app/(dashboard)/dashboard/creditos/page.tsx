@@ -7,7 +7,7 @@ const DEFAULT_PACKAGES: CreditPackage[] = [] // Not used anymore
 
 const PACOTES: CreditPackage[] = [
   { id: 'pacote_basica', name: 'Pacote 10 Consultas Básicas', credits: 10, price: 68.00, is_active: true, popular: true },
-  { id: 'pacote_rating', name: 'Pacote 3 Consultas Rating', credits: 15, price: 119.70, is_active: true },
+  { id: 'pacote_rating', name: 'Pacote 3 Consultas Rating', credits: 3, price: 119.70, is_active: true },
 ]
 
 const CREDITOS: CreditPackage[] = [

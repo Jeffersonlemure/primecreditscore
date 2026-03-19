@@ -4,7 +4,7 @@ import { createPixPayment } from '@/lib/asaas'
 
 const ALLOWED_PACKAGES = [
   { id: 'pacote_basica', name: 'Pacote 10 Consultas Básicas', credits: 10, price: 68.00 },
-  { id: 'pacote_rating', name: 'Pacote 3 Consultas Rating', credits: 15, price: 119.70 },
+  { id: 'pacote_rating', name: 'Pacote 3 Consultas Rating', credits: 3, price: 119.70 },
   { id: 'credito_10', name: '10 Créditos', credits: 10, price: 10.00 },
   { id: 'credito_30', name: '30 Créditos', credits: 30, price: 30.00 },
   { id: 'credito_50', name: '50 Créditos', credits: 50, price: 50.00 },
