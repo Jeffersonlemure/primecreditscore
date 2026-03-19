@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name TEXT,
   cpf_cnpj TEXT,
   credits_balance INTEGER NOT NULL DEFAULT 0,
+  basica_balance INTEGER NOT NULL DEFAULT 0,
+  rating_balance INTEGER NOT NULL DEFAULT 0,
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -91,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_id ON public.credit_tran
 CREATE TABLE IF NOT EXISTS public.pix_payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  package_id UUID REFERENCES public.credit_packages(id),
+  package_id TEXT,
   asaas_payment_id TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CONFIRMED', 'RECEIVED', 'OVERDUE', 'REFUNDED')),
   amount DECIMAL(10,2) NOT NULL,
@@ -161,6 +163,34 @@ BEGIN
   UPDATE public.profiles
   SET credits_balance = credits_balance + p_amount, updated_at = NOW()
   WHERE id = p_user_id;
+
+  INSERT INTO public.credit_transactions (user_id, type, amount, balance_before, balance_after, description, reference_id)
+  VALUES (p_user_id, 'credit_purchase', p_amount, v_balance_before, v_balance_before + p_amount, p_description, p_reference_id);
+END;
+$$;
+
+-- Add package balance (basica or rating)
+CREATE OR REPLACE FUNCTION public.add_package_balance(
+  p_user_id UUID,
+  p_package_type TEXT,
+  p_amount INTEGER,
+  p_description TEXT DEFAULT 'Compra de pacote',
+  p_reference_id TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_balance_before INTEGER;
+BEGIN
+  IF p_package_type = 'basica' THEN
+    SELECT basica_balance INTO v_balance_before FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+    UPDATE public.profiles SET basica_balance = basica_balance + p_amount, updated_at = NOW() WHERE id = p_user_id;
+  ELSIF p_package_type = 'rating' THEN
+    SELECT rating_balance INTO v_balance_before FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+    UPDATE public.profiles SET rating_balance = rating_balance + p_amount, updated_at = NOW() WHERE id = p_user_id;
+  END IF;
 
   INSERT INTO public.credit_transactions (user_id, type, amount, balance_before, balance_after, description, reference_id)
   VALUES (p_user_id, 'credit_purchase', p_amount, v_balance_before, v_balance_before + p_amount, p_description, p_reference_id);
@@ -253,3 +283,4 @@ GRANT USAGE ON SCHEMA public TO service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT EXECUTE ON FUNCTION public.debit_credits TO service_role;
 GRANT EXECUTE ON FUNCTION public.credit_credits TO service_role;
+GRANT EXECUTE ON FUNCTION public.add_package_balance TO service_role;
