@@ -112,33 +112,33 @@ async function testarConsultas(token) {
 
   const results = {}
 
-  // Básica PF — usa RELATORIO_INTERMEDIARIO_PF com features básicas
-  const urlBasicaPF = `${BASE_URL}/crednet/pfconsultation/${HOMOLOG_CPF}/RELATORIO_INTERMEDIARIO_PF?optionalFeatures=SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA`
-  const rBasicaPF = await consultar(token, 'Básica PF  (RELATORIO_INTERMEDIARIO_PF + SCORE/PARTICIPACAO)', urlBasicaPF)
+  // Básica PF — SCORE_POSITIVO_PME é o modelo contratado (não SCORE_POSITIVO)
+  const urlBasicaPF = `${BASE_URL}/crednet/pfconsultation/${HOMOLOG_CPF}/RELATORIO_INTERMEDIARIO_PF?optionalFeatures=SCORE_POSITIVO_PME,PARTICIPACAO_SOCIETARIA`
+  const rBasicaPF = await consultar(token, 'Básica PF  (RELATORIO_INTERMEDIARIO_PF + SCORE_PME/PARTICIPACAO)', urlBasicaPF)
   if (rBasicaPF) {
     checkCampos('Básica PF', rBasicaPF, ['registration', 'negativeData'])
     results.basica_pf = rBasicaPF
   }
 
-  // Básica PJ — PJ usa PARTICIPACOES (não PARTICIPACAO_SOCIETARIA)
-  const urlBasicaPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_INTERMEDIARIO_PJ?optionalFeatures=SCORE_POSITIVO,PARTICIPACOES`
-  const rBasicaPJ = await consultar(token, 'Básica PJ  (RELATORIO_INTERMEDIARIO_PJ + SCORE/PARTICIPACOES)', urlBasicaPJ)
+  // Básica PJ — PARTICIPACOES para PJ; SCORE_POSITIVO não disponível para PJ
+  const urlBasicaPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_INTERMEDIARIO_PJ?optionalFeatures=PARTICIPACOES`
+  const rBasicaPJ = await consultar(token, 'Básica PJ  (RELATORIO_INTERMEDIARIO_PJ + PARTICIPACOES)', urlBasicaPJ)
   if (rBasicaPJ) {
     checkCampos('Básica PJ', rBasicaPJ, ['registration', 'negativeData'])
     results.basica_pj = rBasicaPJ
   }
 
-  // Rating PF
-  const urlRatingPF = `${BASE_URL}/crednet/pfconsultation/${HOMOLOG_CPF}/RELATORIO_INTERMEDIARIO_PF?optionalFeatures=SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,RENDA_ESTIMADA,CAPACIDADE_PAGAMENTO`
-  const rRatingPF = await consultar(token, 'Rating PF  (RELATORIO_INTERMEDIARIO_PF + RENDA/CAPACIDADE)', urlRatingPF)
+  // Rating PF — SCORE_POSITIVO_PME + features de renda e histórico
+  const urlRatingPF = `${BASE_URL}/crednet/pfconsultation/${HOMOLOG_CPF}/RELATORIO_INTERMEDIARIO_PF?optionalFeatures=SCORE_POSITIVO_PME,PARTICIPACAO_SOCIETARIA,RENDA_ESTIMADA,CAPACIDADE_PAGAMENTO,HISTORICO_PAGAMENTO`
+  const rRatingPF = await consultar(token, 'Rating PF  (RELATORIO_INTERMEDIARIO_PF + RENDA/CAPACIDADE/HISTORICO)', urlRatingPF)
   if (rRatingPF) {
     checkCampos('Rating PF', rRatingPF, ['registration', 'negativeData'])
     results.rating_pf = rRatingPF
   }
 
-  // Rating PJ — PJ usa PARTICIPACOES
-  const urlRatingPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_INTERMEDIARIO_PJ?optionalFeatures=SCORE_POSITIVO,PARTICIPACOES,FATURAMENTO_ESTIMADO_POSITIVO,LIMITE_CREDITO`
-  const rRatingPJ = await consultar(token, 'Rating PJ  (RELATORIO_INTERMEDIARIO_PJ + FATURAMENTO/LIMITE)', urlRatingPJ)
+  // Rating PJ — sem SCORE_POSITIVO; features financeiras disponíveis
+  const urlRatingPJ = `${BASE_URL}/crednet/pjconsultation/${HOMOLOG_CNPJ}/${HOMOLOG_UF_PJ}/RELATORIO_INTERMEDIARIO_PJ?optionalFeatures=PARTICIPACOES,FATURAMENTO_ESTIMADO_POSITIVO,LIMITE_CREDITO,PONTUALIDADE_PAGAMENTO`
+  const rRatingPJ = await consultar(token, 'Rating PJ  (RELATORIO_INTERMEDIARIO_PJ + FATURAMENTO/LIMITE/PONT)', urlRatingPJ)
   if (rRatingPJ) {
     checkCampos('Rating PJ', rRatingPJ, ['registration', 'negativeData'])
     results.rating_pj = rRatingPJ
