@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT,
   full_name TEXT,
   cpf_cnpj TEXT,
-  credits_balance INTEGER NOT NULL DEFAULT 5, -- 5 free credits on signup
+  credits_balance INTEGER NOT NULL DEFAULT 0,
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
