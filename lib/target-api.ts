@@ -221,9 +221,9 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    // PJ usa PARTICIPACOES; SCORE_POSITIVO não está no contrato para PJ
-    const features = 'PARTICIPACOES'
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
+    // SCORE_POSITIVO para PJ só funciona com RELATORIO_BASICO_PJ
+    const features = 'SCORE_POSITIVO,PARTICIPACOES'
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_BASICO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
