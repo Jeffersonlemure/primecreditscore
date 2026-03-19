@@ -3,17 +3,15 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    // Validate Asaas webhook token
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN
-    if (webhookToken) {
-      const authHeader = request.headers.get('asaas-access-token') || request.headers.get('authorization')
-      if (authHeader !== webhookToken) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
-
     const body = await request.json()
-    const { event, payment } = body
+    const { event, payment, accessToken } = body
+
+    // Validate Asaas webhook token (sent in body as accessToken)
+    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN
+    if (webhookToken && accessToken !== webhookToken) {
+      console.warn('Webhook token mismatch')
+      return NextResponse.json({ received: true })
+    }
 
     // Only process confirmed payments
     if (event !== 'PAYMENT_RECEIVED' && event !== 'PAYMENT_CONFIRMED') {
@@ -22,7 +20,7 @@ export async function POST(request: Request) {
 
     const asaasPaymentId = payment?.id
     if (!asaasPaymentId) {
-      return NextResponse.json({ error: 'Payment ID missing' }, { status: 400 })
+      return NextResponse.json({ received: true })
     }
 
     const adminClient = await createAdminClient()
@@ -35,8 +33,9 @@ export async function POST(request: Request) {
       .single()
 
     if (findError || !pixPayment) {
-      console.error('Payment not found:', asaasPaymentId)
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
+      // Payment not in our system (e.g. created manually in Asaas) — acknowledge and ignore
+      console.log('Payment not in system, ignoring:', asaasPaymentId)
+      return NextResponse.json({ received: true })
     }
 
     // Idempotency check
