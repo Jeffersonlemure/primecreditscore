@@ -210,6 +210,7 @@ function itauCapitalSocial(val: any): number {
 
 export async function consultarBasicaPF(cpf: string) {
   try {
+    // RELATORIO_INTERMEDIARIO_PF com apenas features básicas (sem renda/capacidade)
     const features = 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
     const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PF', 'basica_pf') }
@@ -220,8 +221,8 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    const features = 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA'
-    // URL requires UF, using defaulting to SP if not known
+    // PJ usa PARTICIPACOES (não PARTICIPACAO_SOCIETARIA que é exclusiva de PF)
+    const features = 'SCORE_POSITIVO,PARTICIPACOES'
     const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') }
   } catch (error: unknown) {
@@ -231,7 +232,7 @@ export async function consultarBasicaPJ(cnpj: string) {
 
 export async function consultarRatingPF(cpf: string) {
   try {
-    const features = 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Renda_estimada,Capacidade_pagamento'
+    const features = 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,RENDA_ESTIMADA,CAPACIDADE_PAGAMENTO'
     const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PF', 'rating_pf') }
   } catch (error: unknown) {
@@ -241,7 +242,8 @@ export async function consultarRatingPF(cpf: string) {
 
 export async function consultarRatingPJ(cnpj: string) {
   try {
-    const features = 'SCORE_POSITIVO,PARTICIPACAO_SOCIETARIA,Faturamento_estimado_positivo,Limite_crédito'
+    // PJ usa PARTICIPACOES (não PARTICIPACAO_SOCIETARIA que é exclusiva de PF)
+    const features = 'SCORE_POSITIVO,PARTICIPACOES,FATURAMENTO_ESTIMADO_POSITIVO,LIMITE_CREDITO'
     const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'rating_pj') }
   } catch (error: unknown) {
