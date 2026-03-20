@@ -768,20 +768,42 @@ export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Ar
   y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
-  y = drawTwoColumns(doc, [
-    ['Nome', id.nome],
-    ['CPF', formatCPF(id.cpf)],
-    ['Data de Nascimento', id.dataNascimento],
-    ['Nome da Mãe', id.nomeMae],
-  ], y)
-  // Situação do CPF line
+
+  // Row 1: Nome (left) + CPF (right-aligned)
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Nome', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text((id.nome || '-').substring(0, 55), 30, y)
+  // CPF right-aligned
+  doc.text(formatCPF(id.cpf), pageW - 14, y, { align: 'right' })
+  y += 5.5
+
+  // Row 2: Data de Nascimento (left) + Nome da Mãe (right side)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Data de Nascimento:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(id.dataNascimento || '-', 54, y)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Nome da Mãe:', 110, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text((id.nomeMae || '-').substring(0, 35), 134, y)
+  y += 5.5
+
+  // Row 3: Situação do CPF
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text(`Situação do CPF: `, 14, y + 3)
+  doc.text('Situação do CPF:', 14, y + 3)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCpf || 'REGULAR', 14 + 32, y + 3)
+  doc.text(id.situacaoCpf || 'REGULAR', 48, y + 3)
   y += 10
 
   // 2. Anotações Negativas - Resumo
@@ -835,19 +857,45 @@ export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Ar
   y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
-  y = drawTwoColumns(doc, [
-    ['Razão Social', id.razaoSocial],
-    ['CNPJ', formatCNPJ(id.cnpj)],
-    ['Data de Fundação', id.dataFundacao],
-    ['UF / Município', `${id.uf} / ${id.municipio}`],
-  ], y)
+
+  // Row 1: Razão Social (left, max 80mm wide) + CNPJ (right-aligned)
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Razão Social:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  // Truncate name to fit left column (max ~55 chars)
+  const razaoSocialText = (id.razaoSocial || '-').substring(0, 55)
+  doc.text(razaoSocialText, 42, y)
+  // CNPJ right-aligned
+  doc.text(formatCNPJ(id.cnpj), pageW - 14, y, { align: 'right' })
+  y += 5.5
+
+  // Row 2: Data de Fundação (left) + UF/Município (right side)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Data de Fundação:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(id.dataFundacao || '-', 50, y)
+  // UF/Município - positioned at right half
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('UF / Município:', 110, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`${id.uf || '-'} / ${id.municipio || '-'}`, 138, y)
+  y += 5.5
+
+  // Row 3: Situação do CNPJ (full width)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CNPJ: ', 14, y + 3)
+  doc.text('Situação do CNPJ:', 14, y + 3)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCnpj || 'ATIVA', 14 + 34, y + 3)
+  doc.text(id.situacaoCnpj || 'ATIVA', 50, y + 3)
   y += 10
 
   // 2. Anotações Negativas - Resumo
@@ -908,19 +956,42 @@ export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Ar
   y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
-  y = drawTwoColumns(doc, [
-    ['Nome', id.nome],
-    ['CPF', formatCPF(id.cpf)],
-    ['Data de Nascimento', id.dataNascimento],
-    ['Nome da Mãe', id.nomeMae],
-  ], y)
+
+  // Row 1: Nome (left) + CPF (right-aligned)
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Nome', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text((id.nome || '-').substring(0, 55), 30, y)
+  // CPF right-aligned
+  doc.text(formatCPF(id.cpf), pageW - 14, y, { align: 'right' })
+  y += 5.5
+
+  // Row 2: Data de Nascimento (left) + Nome da Mãe (right side)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Data de Nascimento:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(id.dataNascimento || '-', 54, y)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Nome da Mãe:', 110, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text((id.nomeMae || '-').substring(0, 35), 134, y)
+  y += 5.5
+
+  // Row 3: Situação do CPF
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CPF: ', 14, y + 3)
+  doc.text('Situação do CPF:', 14, y + 3)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCpf || 'REGULAR', 14 + 32, y + 3)
+  doc.text(id.situacaoCpf || 'REGULAR', 48, y + 3)
   y += 10
 
   // 2. Anotações Negativas - Resumo
@@ -1001,19 +1072,45 @@ export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Ar
   y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
-  y = drawTwoColumns(doc, [
-    ['Razão Social', id.razaoSocial],
-    ['CNPJ', formatCNPJ(id.cnpj)],
-    ['Data de Fundação', id.dataFundacao],
-    ['UF / Município', `${id.uf} / ${id.municipio}`],
-  ], y)
+
+  // Row 1: Razão Social (left, max 80mm wide) + CNPJ (right-aligned)
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Razão Social:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  // Truncate name to fit left column (max ~55 chars)
+  const razaoSocialText = (id.razaoSocial || '-').substring(0, 55)
+  doc.text(razaoSocialText, 42, y)
+  // CNPJ right-aligned
+  doc.text(formatCNPJ(id.cnpj), pageW - 14, y, { align: 'right' })
+  y += 5.5
+
+  // Row 2: Data de Fundação (left) + UF/Município (right side)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Data de Fundação:', 14, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(id.dataFundacao || '-', 50, y)
+  // UF/Município - positioned at right half
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('UF / Município:', 110, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`${id.uf || '-'} / ${id.municipio || '-'}`, 138, y)
+  y += 5.5
+
+  // Row 3: Situação do CNPJ (full width)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CNPJ: ', 14, y + 3)
+  doc.text('Situação do CNPJ:', 14, y + 3)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCnpj || 'ATIVA', 14 + 34, y + 3)
+  doc.text(id.situacaoCnpj || 'ATIVA', 50, y + 3)
   y += 10
 
   // 2. Anotações Negativas - Resumo

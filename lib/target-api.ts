@@ -328,11 +328,10 @@ function extractScorePJ(opt: any, consultationType: string): {
 
 // ─── Sócios / Administradores Builder (PJ) ────────────────────────────────────
 
-function buildSociosAdmins(report: any): {
+function buildSociosAdmins(report: any, opt: any = {}): {
   socios: Array<{ documento: string; nome: string; participacao: string }>
   administradores: Array<{ documento: string; nome: string; cargo: string }>
 } {
-  const opt = report.optionalFeatureResponse || {}
   const reg = report.registration || {}
 
   // Try PARTICIPACOES.partnerships for equity partners
@@ -454,7 +453,7 @@ function mapTargetToGeneric(
   } else {
     // PJ
     const score = extractScorePJ(opt, consultationType)
-    const { socios, administradores } = buildSociosAdmins(report)
+    const { socios, administradores } = buildSociosAdmins(report, opt)
 
     const situacaoCnpj: string = reg.statusRegistration || 'ATIVA'
 
