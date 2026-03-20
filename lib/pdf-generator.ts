@@ -864,18 +864,22 @@ export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Ar
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
 
-  // Row 1: Razão Social (left, max 80mm wide) + CNPJ (right-aligned)
+  // Row 1: Razão Social (left) + CNPJ label + value (right)
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
   doc.text('Razão Social:', 14, y)
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
-  // Truncate name to fit left column (max ~55 chars)
-  const razaoSocialText = (id.razaoSocial || '-').substring(0, 55)
-  doc.text(razaoSocialText, 42, y)
-  // CNPJ right-aligned
-  doc.text(formatCNPJ(id.cnpj), pageW - 14, y, { align: 'right' })
+  doc.text((id.razaoSocial || '-').substring(0, 55), 42, y)
+  const cnpjValue = formatCNPJ(id.cnpj)
+  const cnpjValueW = doc.getTextWidth(cnpjValue)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('CNPJ: ', pageW - 14 - cnpjValueW, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cnpjValue, pageW - 14, y, { align: 'right' })
   y += 5.5
 
   // Row 2: Data de Fundação (left) + UF/Município (right side)
@@ -885,7 +889,6 @@ export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Ar
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
   doc.text(id.dataFundacao || '-', 50, y)
-  // UF/Município - positioned at right half
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
   doc.text('UF / Município:', 110, y)
@@ -894,15 +897,15 @@ export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Ar
   doc.text(`${id.uf || '-'} / ${id.municipio || '-'}`, 138, y)
   y += 5.5
 
-  // Row 3: Situação do CNPJ (full width)
+  // Row 3: Situação do CNPJ
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CNPJ:', 14, y + 3)
+  doc.text('Situação do CNPJ:', 14, y)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCnpj || 'ATIVA', 50, y + 3)
-  y += 10
+  doc.text(id.situacaoCnpj || 'ATIVA', 50, y)
+  y += 7
 
   // 2. Anotações Negativas - Resumo
   y = checkPageBreak(doc, y, 20, TITLE)
@@ -1089,18 +1092,22 @@ export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Ar
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
 
-  // Row 1: Razão Social (left, max 80mm wide) + CNPJ (right-aligned)
+  // Row 1: Razão Social (left) + CNPJ label + value (right)
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
   doc.text('Razão Social:', 14, y)
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
-  // Truncate name to fit left column (max ~55 chars)
-  const razaoSocialText = (id.razaoSocial || '-').substring(0, 55)
-  doc.text(razaoSocialText, 42, y)
-  // CNPJ right-aligned
-  doc.text(formatCNPJ(id.cnpj), pageW - 14, y, { align: 'right' })
+  doc.text((id.razaoSocial || '-').substring(0, 55), 42, y)
+  const cnpjValue = formatCNPJ(id.cnpj)
+  const cnpjValueW = doc.getTextWidth(cnpjValue)
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  doc.text('CNPJ: ', pageW - 14 - cnpjValueW, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cnpjValue, pageW - 14, y, { align: 'right' })
   y += 5.5
 
   // Row 2: Data de Fundação (left) + UF/Município (right side)
@@ -1110,7 +1117,6 @@ export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Ar
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
   doc.text(id.dataFundacao || '-', 50, y)
-  // UF/Município - positioned at right half
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
   doc.text('UF / Município:', 110, y)
@@ -1119,15 +1125,15 @@ export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Ar
   doc.text(`${id.uf || '-'} / ${id.municipio || '-'}`, 138, y)
   y += 5.5
 
-  // Row 3: Situação do CNPJ (full width)
+  // Row 3: Situação do CNPJ
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CNPJ:', 14, y + 3)
+  doc.text('Situação do CNPJ:', 14, y)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCnpj || 'ATIVA', 50, y + 3)
-  y += 10
+  doc.text(id.situacaoCnpj || 'ATIVA', 50, y)
+  y += 7
 
   // 2. Anotações Negativas - Resumo
   y = checkPageBreak(doc, y, 20, TITLE)
