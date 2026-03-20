@@ -769,7 +769,7 @@ export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Ar
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
 
-  // Row 1: Nome (left) + CPF (right-aligned)
+  // Row 1: Nome (left) + CPF label + value (right)
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
@@ -777,8 +777,14 @@ export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Ar
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
   doc.text((id.nome || '-').substring(0, 55), 30, y)
-  // CPF right-aligned
-  doc.text(formatCPF(id.cpf), pageW - 14, y, { align: 'right' })
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  const cpfValue = formatCPF(id.cpf)
+  const cpfValueW = doc.getTextWidth(cpfValue)
+  doc.text('CPF: ', pageW - 14 - cpfValueW, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cpfValue, pageW - 14, y, { align: 'right' })
   y += 5.5
 
   // Row 2: Data de Nascimento (left) + Nome da Mãe (right side)
@@ -800,11 +806,11 @@ export async function generateBasicaPFPdf(data: BasicaPFResult): Promise<Uint8Ar
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CPF:', 14, y + 3)
+  doc.text('Situação do CPF:', 14, y)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCpf || 'REGULAR', 48, y + 3)
-  y += 10
+  doc.text(id.situacaoCpf || 'REGULAR', 48, y)
+  y += 7
 
   // 2. Anotações Negativas - Resumo
   y = checkPageBreak(doc, y, 20, TITLE)
@@ -957,7 +963,7 @@ export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Ar
   y = drawSectionTitle(doc, '1. Identificação', y)
   const id = data.identificacao
 
-  // Row 1: Nome (left) + CPF (right-aligned)
+  // Row 1: Nome (left) + CPF label + value (right)
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.gray)
   doc.setFont('helvetica', 'normal')
@@ -965,8 +971,14 @@ export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Ar
   doc.setTextColor(...COLORS.dark)
   doc.setFont('helvetica', 'bold')
   doc.text((id.nome || '-').substring(0, 55), 30, y)
-  // CPF right-aligned
-  doc.text(formatCPF(id.cpf), pageW - 14, y, { align: 'right' })
+  doc.setTextColor(...COLORS.gray)
+  doc.setFont('helvetica', 'normal')
+  const cpfValue = formatCPF(id.cpf)
+  const cpfValueW = doc.getTextWidth(cpfValue)
+  doc.text('CPF: ', pageW - 14 - cpfValueW, y)
+  doc.setTextColor(...COLORS.dark)
+  doc.setFont('helvetica', 'bold')
+  doc.text(cpfValue, pageW - 14, y, { align: 'right' })
   y += 5.5
 
   // Row 2: Data de Nascimento (left) + Nome da Mãe (right side)
@@ -988,11 +1000,11 @@ export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Ar
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text('Situação do CPF:', 14, y + 3)
+  doc.text('Situação do CPF:', 14, y)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.dark)
-  doc.text(id.situacaoCpf || 'REGULAR', 48, y + 3)
-  y += 10
+  doc.text(id.situacaoCpf || 'REGULAR', 48, y)
+  y += 7
 
   // 2. Anotações Negativas - Resumo
   y = checkPageBreak(doc, y, 20, TITLE)
