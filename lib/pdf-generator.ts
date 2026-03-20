@@ -920,9 +920,9 @@ export async function generateBasicaPJPdf(data: BasicaPJResult): Promise<Uint8Ar
   // 3. Faturamento Estimado com Positivo
   y = checkPageBreak(doc, y, 16, TITLE)
   y = drawSectionTitle(doc, '3. Faturamento Estimado com Positivo', y)
-  doc.setFontSize(11)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
+  doc.setTextColor(...COLORS.dark)
   doc.text(
     data.faturamento > 0 ? `${formatCurrency(data.faturamento)} ao ano` : '-',
     14, y + 5
@@ -1030,29 +1030,33 @@ export async function generateRatingPFPdf(data: RatingPFResult): Promise<Uint8Ar
   // 5. Capacidade de Pagamento
   y = checkPageBreak(doc, y, 20, TITLE)
   y = drawSectionTitle(doc, '5. Capacidade de Pagamento', y)
-  doc.setFontSize(10)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
-  doc.text(
-    data.capacidadePagamento.min === 0 && data.capacidadePagamento.max === 0
-      ? '-'
-      : formatCurrencyRange(data.capacidadePagamento.min, data.capacidadePagamento.max),
-    14, y + 5
-  )
+  doc.setTextColor(...COLORS.dark)
+  const capMin = data.capacidadePagamento.min
+  const capMax = data.capacidadePagamento.max
+  const capText = (capMin === 0 && capMax === 0)
+    ? '-'
+    : capMin === capMax
+      ? formatCurrency(capMin)
+      : formatCurrencyRange(capMin, capMax)
+  doc.text(capText, 14, y + 5)
   y += 14
 
   // 6. Renda Estimada
   y = checkPageBreak(doc, y, 16, TITLE)
   y = drawSectionTitle(doc, '6. Renda Estimada', y)
-  doc.setFontSize(10)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
-  doc.text(
-    data.renda.min === 0 && data.renda.max === 0
-      ? '-'
-      : formatCurrencyRange(data.renda.min, data.renda.max),
-    14, y + 5
-  )
+  doc.setTextColor(...COLORS.dark)
+  const rendaMin = data.renda.min
+  const rendaMax = data.renda.max
+  const rendaText = (rendaMin === 0 && rendaMax === 0)
+    ? '-'
+    : rendaMin === rendaMax
+      ? formatCurrency(rendaMin)
+      : formatCurrencyRange(rendaMin, rendaMax)
+  doc.text(rendaText, 14, y + 5)
   y += 14
 
   drawFooter(doc)
@@ -1135,9 +1139,9 @@ export async function generateRatingPJPdf(data: RatingPJResult): Promise<Uint8Ar
   // 3. Faturamento Estimado com Positivo
   y = checkPageBreak(doc, y, 16, TITLE)
   y = drawSectionTitle(doc, '3. Faturamento Estimado com Positivo', y)
-  doc.setFontSize(11)
+  doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...COLORS.primary)
+  doc.setTextColor(...COLORS.dark)
   doc.text(
     data.faturamento > 0 ? `${formatCurrency(data.faturamento)} ao ano` : '-',
     14, y + 5
