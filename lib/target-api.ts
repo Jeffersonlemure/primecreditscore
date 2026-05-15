@@ -542,8 +542,7 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    const features = 'SCORE_POSITIVO'
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ/`)
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') as BasicaPJResult }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -562,8 +561,8 @@ export async function consultarRatingPF(cpf: string) {
 
 export async function consultarRatingPJ(cnpj: string) {
   try {
-    const features = 'SCORE_POSITIVO,LIMITE_CREDITO,FATURAMENTO_ESTIMADO_POSITIVO'
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
+    const features = 'LIMITE_CREDITO,FATURAMENTO_ESTIMADO_POSITIVO,PONTUALIDADE_PAGAMENTO'
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ/`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'rating_pj') as RatingPJResult }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
