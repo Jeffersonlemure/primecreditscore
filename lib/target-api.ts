@@ -532,8 +532,7 @@ function mapTargetToGeneric(
 
 export async function consultarBasicaPF(cpf: string) {
   try {
-    // SCORE_POSITIVO_PME é o modelo contratado (SCORE_POSITIVO não está liberado)
-    const features = 'SCORE_POSITIVO_PME,PARTICIPACAO_SOCIETARIA'
+    const features = 'SCORE_POSITIVO_PME'
     const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PF', 'basica_pf') as BasicaPFResult }
   } catch (error: unknown) {
@@ -543,8 +542,8 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    const features = 'CONSULTAS_A_SERASA,ANOTACOES_CONSULTAS_SPC'
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
+    const features = 'SCORE_POSITIVO'
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_BASICO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') as BasicaPJResult }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -553,8 +552,7 @@ export async function consultarBasicaPJ(cnpj: string) {
 
 export async function consultarRatingPF(cpf: string) {
   try {
-    // SCORE_POSITIVO_PME é o modelo contratado; HISTORICO_PAGAMENTO disponível no contrato
-    const features = 'SCORE_POSITIVO_PME,PARTICIPACAO_SOCIETARIA,RENDA_ESTIMADA,CAPACIDADE_PAGAMENTO,HISTORICO_PAGAMENTO'
+    const features = 'SCORE_POSITIVO_PME,CAPACIDADE_PAGAMENTO,RENDA_ESTIMADA'
     const data = await apiGet(`/crednet/pfconsultation/${cpf}/RELATORIO_INTERMEDIARIO_PF`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PF', 'rating_pf') as RatingPFResult }
   } catch (error: unknown) {
@@ -564,8 +562,7 @@ export async function consultarRatingPF(cpf: string) {
 
 export async function consultarRatingPJ(cnpj: string) {
   try {
-    // PJ usa PARTICIPACOES; SCORE_POSITIVO não disponível no contrato para PJ
-    const features = 'PARTICIPACOES,FATURAMENTO_ESTIMADO_POSITIVO,LIMITE_CREDITO,PONTUALIDADE_PAGAMENTO'
+    const features = 'SCORE_POSITIVO,LIMITE_CREDITO,FATURAMENTO_ESTIMADO_POSITIVO'
     const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'rating_pj') as RatingPJResult }
   } catch (error: unknown) {
