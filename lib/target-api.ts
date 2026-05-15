@@ -390,7 +390,7 @@ function mapTargetToGeneric(
   const opt = targetData.optionalFeatures || {}
 
   const anotacoes = buildAnotacoes(report)
-  const consultadoEm = new Date().toLocaleString('pt-BR')
+  const consultadoEm = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 
   if (type === 'PF') {
     const score = extractScorePF(opt)

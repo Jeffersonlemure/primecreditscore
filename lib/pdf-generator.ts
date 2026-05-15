@@ -94,7 +94,7 @@ function drawHeader(doc: jsPDF, title: string) {
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.dark)
-  const data = new Date().toLocaleString('pt-BR')
+  const data = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   doc.text(data, pageW - 14, 55, { align: 'right' })
 }
 
@@ -292,23 +292,27 @@ function drawScoreGaugePJ(doc: jsPDF, score: number, _risco: string, cx: number,
     doc.text('de 1000', cx, cy + 6, { align: 'center' })
   }
 
-  // Legend (4 bands)
-  const legendY = startY + gaugeH - 14
+  // Legend (2 rows × 2 items)
+  const legendY = startY + gaugeH - 16
   const legendX = cx - gaugeW / 2 + 2
+  const halfW = gaugeW / 2
   const bands = [
-    { color: COLORS.gaugeGreen,  label: 'Verde: Mínimo/Baixo' },
-    { color: COLORS.gaugeYellow, label: 'Amarelo: Baixo/Médio' },
-    { color: COLORS.gaugeOrange, label: 'Laranja: Médio/Relevante' },
-    { color: COLORS.gaugeRed,    label: 'Vermelho: Iminente/Default' },
+    { color: COLORS.gaugeGreen,  label: 'Verde: Mínimo' },
+    { color: COLORS.gaugeYellow, label: 'Amarelo: Baixo' },
+    { color: COLORS.gaugeOrange, label: 'Laranja: Médio' },
+    { color: COLORS.gaugeRed,    label: 'Vermelho: Default' },
   ]
   bands.forEach((band, idx) => {
-    const bx = legendX + idx * (gaugeW / 4)
+    const row = Math.floor(idx / 2)
+    const col = idx % 2
+    const bx = legendX + col * halfW
+    const by = legendY + row * 7
     doc.setFillColor(...band.color)
-    doc.rect(bx, legendY, 3, 3, 'F')
-    doc.setFontSize(5)
+    doc.rect(bx, by, 3.5, 3.5, 'F')
+    doc.setFontSize(6.5)
     doc.setTextColor(...COLORS.gray)
     doc.setFont('helvetica', 'normal')
-    doc.text(band.label, bx + 4, legendY + 2.5)
+    doc.text(band.label, bx + 5, by + 3)
   })
 
   // @ts-ignore
