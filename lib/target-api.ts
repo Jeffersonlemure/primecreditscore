@@ -543,7 +543,7 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    const features = 'SCORE_POSITIVO,QSA'
+    const features = 'CONSULTAS_A_SERASA,ANOTACOES_CONSULTAS_SPC'
     const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') as BasicaPJResult }
   } catch (error: unknown) {
