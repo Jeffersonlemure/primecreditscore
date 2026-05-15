@@ -543,9 +543,8 @@ export async function consultarBasicaPF(cpf: string) {
 
 export async function consultarBasicaPJ(cnpj: string) {
   try {
-    // SCORE_POSITIVO para PJ só funciona com RELATORIO_BASICO_PJ; PARTICIPACOES não é compatível com esse relatório
-    const features = 'SCORE_POSITIVO'
-    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_BASICO_PJ`, { optionalFeatures: features })
+    const features = 'SCORE_POSITIVO,QSA'
+    const data = await apiGet(`/crednet/pjconsultation/${cnpj}/SP/RELATORIO_INTERMEDIARIO_PJ`, { optionalFeatures: features })
     return { success: true, data: mapTargetToGeneric(data, 'PJ', 'basica_pj') as BasicaPJResult }
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) }
@@ -575,8 +574,15 @@ export async function consultarRatingPJ(cnpj: string) {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message: unknown }).message)
+  if (error && typeof error === 'object') {
+    // Axios error: include the API response body when available
+    if ('response' in error) {
+      const res = (error as { response: { status: number; data: unknown } }).response
+      const body = res?.data ? JSON.stringify(res.data) : ''
+      const msg = 'message' in error ? String((error as { message: unknown }).message) : 'Erro desconhecido'
+      return body ? `${msg} — ${body}` : msg
+    }
+    if ('message' in error) return String((error as { message: unknown }).message)
   }
   return 'Erro desconhecido'
 }
